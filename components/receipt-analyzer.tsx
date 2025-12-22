@@ -4,7 +4,8 @@ import { useState, useCallback } from "react"
 import { FileUploader } from "./file-uploader"
 import { ItemsTable } from "./items-table"
 import { CategoryStats } from "./category-stats"
-import { BatchProgress, type BatchInfo, type SecondPassInfo } from "./batch-progress"
+import { AIBatchVisualization } from "./ai-batch-visualization"
+import type { BatchInfo, SecondPassInfo } from "./batch-progress"
 import { parseReceiptFile } from "@/app/actions/parse"
 import type { CategorizedItem, ParsedReceipt, ReceiptItem } from "@/lib/types"
 import { CATEGORIES, getSectorByCode } from "@/lib/types"
@@ -275,7 +276,7 @@ export function ReceiptAnalyzer() {
 
       {state === "categorizing" && (
         <div className="flex flex-col gap-4 md:gap-6">
-          <BatchProgress
+          <AIBatchVisualization
             batches={batches}
             preCategorizedCount={preCategorizedCount}
             totalItems={totalItems}
