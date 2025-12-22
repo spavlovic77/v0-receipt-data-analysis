@@ -34,7 +34,7 @@ Aplikácia zobrazuje nasledovné metriky:
 
 ## Štruktúra projektu
 
-```
+\`\`\`
 ├── app/
 │   ├── actions/          # Server actions (parsing, kategorization)
 │   ├── api/              # API routes (streaming kategorization)
@@ -48,7 +48,7 @@ Aplikácia zobrazuje nasledovné metriky:
 └── lib/
     ├── parser.ts         # XML parser pre eKasa formát
     └── types.ts          # TypeScript typy, sektory a kategórie
-```
+\`\`\`
 
 ## Hierarchická taxonómia
 
