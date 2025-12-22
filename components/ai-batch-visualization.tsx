@@ -46,7 +46,7 @@ export function AIBatchVisualization({
             </div>
             <div>
               <h3 className="text-lg font-semibold">AI Kategorizácia</h3>
-              <p className="text-xs text-muted-foreground">Pokročilá neurónová analýza</p>
+              <p className="text-xs text-muted-foreground">Pokročilá AI analýza</p>
             </div>
           </div>
           <div className="text-right">

@@ -252,8 +252,8 @@ export function ReceiptAnalyzer() {
               className="gap-2 self-start sm:self-auto bg-transparent"
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Začať znova</span>
-              <span className="sm:hidden">Reset</span>
+              <span className="hidden sm:inline">Nový sken</span>
+              <span className="sm:hidden">Nový sken</span>
             </Button>
           )}
         </div>
