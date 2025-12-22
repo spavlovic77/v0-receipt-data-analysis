@@ -8,6 +8,7 @@ import { fetchReceiptById } from "@/app/actions/fetch-receipt"
 import { saveScannedReceipt } from "@/app/actions/save-receipt"
 import { QrScanner } from "@/components/qr-scanner"
 import { AuthDialog } from "@/components/auth-dialog"
+import { DuplicateReceiptDialog } from "@/components/duplicate-receipt-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 
@@ -40,6 +41,11 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
     receipt: any
     dataString: string
     fileName: string
+  } | null>(null)
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
+  const [duplicateReceiptInfo, setDuplicateReceiptInfo] = useState<{
+    receiptId: string
+    scannedAt?: string
   } | null>(null)
 
   useEffect(() => {
@@ -176,8 +182,19 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         const saveResult = await saveScannedReceipt(receiptId, dic, receipt)
 
         if (saveResult.error) {
-          console.error("[v0] Error saving receipt:", saveResult.error)
-          alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+          if (saveResult.error === "DUPLICATE") {
+            console.log("[v0] Duplicate receipt detected")
+            setDuplicateReceiptInfo({
+              receiptId,
+              scannedAt: saveResult.scannedAt,
+            })
+            setShowDuplicateDialog(true)
+          } else {
+            console.error("[v0] Error saving receipt:", saveResult.error)
+            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+          }
+          setLoadingReceipt(false)
+          return
         } else {
           console.log("[v0] Receipt saved with signature:", saveResult.signedMessage)
         }
@@ -214,8 +231,19 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         )
 
         if (saveResult.error) {
-          console.error("[v0] Error saving pending receipt:", saveResult.error)
-          alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+          if (saveResult.error === "DUPLICATE") {
+            console.log("[v0] Duplicate receipt detected after login")
+            setDuplicateReceiptInfo({
+              receiptId: pendingReceipt.receiptId,
+              scannedAt: saveResult.scannedAt,
+            })
+            setShowDuplicateDialog(true)
+            setPendingReceipt(null)
+            return
+          } else {
+            console.error("[v0] Error saving pending receipt:", saveResult.error)
+            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+          }
         } else {
           console.log("[v0] Pending receipt saved with signature:", saveResult.signedMessage)
         }
@@ -269,7 +297,7 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
 
           <div className="space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Naskenujte QR kód z dokladu</h2>
-                     </div>
+          </div>
 
           <QrScanner onScan={handleQrScan} loading={loadingReceipt} variant="primary" />
 
@@ -371,6 +399,12 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
       )}
 
       <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} onSuccess={handleAuthSuccess} />
+      <DuplicateReceiptDialog
+        open={showDuplicateDialog}
+        onOpenChange={setShowDuplicateDialog}
+        receiptId={duplicateReceiptInfo?.receiptId || ""}
+        scannedAt={duplicateReceiptInfo?.scannedAt}
+      />
     </div>
   )
 }

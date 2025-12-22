@@ -15,6 +15,22 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: "User not authenticated" }
   }
 
+  const { data: existing, error: checkError } = await supabase
+    .from("scanned_receipts")
+    .select("id, scanned_at")
+    .eq("user_id", user.id)
+    .eq("receipt_id", receiptId)
+    .single()
+
+  if (existing) {
+    console.log("[v0] Receipt already scanned:", { receiptId, scannedAt: existing.scanned_at })
+    return {
+      error: "DUPLICATE",
+      message: "Tento doklad ste už naskenovali",
+      scannedAt: existing.scanned_at,
+    }
+  }
+
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
     .select("name, surname, birth_number")
