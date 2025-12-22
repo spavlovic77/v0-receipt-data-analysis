@@ -20,7 +20,9 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     .select("id, scanned_at")
     .eq("user_id", user.id)
     .eq("receipt_id", receiptId)
-    .single()
+    .maybeSingle()
+
+  console.log("[v0] Duplicate check result:", { existing, checkError, receiptId })
 
   if (existing) {
     console.log("[v0] Receipt already scanned:", { receiptId, scannedAt: existing.scanned_at })
