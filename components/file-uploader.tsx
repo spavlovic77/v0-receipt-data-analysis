@@ -269,10 +269,7 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
 
           <div className="space-y-3">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Naskenujte QR kód z dokladu</h2>
-            {!isAuthenticated && (
-              <p className="text-sm text-muted-foreground">Prosím, prihláste sa pre uloženie dokladu</p>
-            )}
-          </div>
+                     </div>
 
           <QrScanner onScan={handleQrScan} loading={loadingReceipt} variant="primary" />
 
