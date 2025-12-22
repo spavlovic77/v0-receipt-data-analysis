@@ -47,6 +47,7 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
     receiptId: string
     scannedAt?: string
   } | null>(null)
+  const [isProcessingAfterLogin, setIsProcessingAfterLogin] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -216,6 +217,8 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
   )
 
   const handleAuthSuccess = async () => {
+    setIsProcessingAfterLogin(true)
+
     const supabase = createClient()
     const {
       data: { user },
@@ -244,12 +247,14 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
             })
             setShowDuplicateDialog(true)
             setPendingReceipt(null)
-            return // Stop here, don't upload
+            setIsProcessingAfterLogin(false)
+            return
           } else {
             console.error("[v0] Error saving pending receipt:", saveResult.error)
             alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
             setPendingReceipt(null)
-            return // Stop here, don't upload
+            setIsProcessingAfterLogin(false)
+            return
           }
         }
 
@@ -264,7 +269,10 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
       } catch (error) {
         console.error("[v0] Error processing pending receipt:", error)
         alert("Nepodarilo sa spracovať doklad po prihlásení")
+        setIsProcessingAfterLogin(false)
       }
+    } else {
+      setIsProcessingAfterLogin(false)
     }
   }
 
@@ -277,6 +285,18 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {isProcessingAfterLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold">Spracovávam doklad...</p>
+              <p className="text-sm text-muted-foreground">Ukladám a pripravujem kategorizáciu</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAuthenticated && userEmail && (
         <div className="flex items-center justify-between p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
           <div className="flex items-center gap-3">
