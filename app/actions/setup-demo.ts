@@ -14,40 +14,75 @@ export async function setupDemoUser() {
   })
 
   try {
+    console.log("[v0] Starting demo user setup...")
+
     // Delete existing demo user if exists
     const { data: existingUsers } = await supabase.auth.admin.listUsers()
     const existingDemo = existingUsers?.users?.find((u) => u.email === "demo@example.com")
 
     if (existingDemo) {
+      console.log("[v0] Deleting existing demo user:", existingDemo.id)
       await supabase.auth.admin.deleteUser(existingDemo.id)
     }
 
-    // Create demo user with proper password hashing
+    console.log("[v0] Creating new demo user...")
+
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: "demo@example.com",
       password: "demo1234",
       email_confirm: true,
+      user_metadata: {
+        name: "Adam",
+        surname: "Smith",
+      },
     })
 
-    if (authError) throw authError
+    if (authError) {
+      console.error("[v0] Auth error:", authError)
+      throw authError
+    }
 
-    // Create public.users record
-    await supabase.from("users").upsert({
-      id: authData.user.id,
-      email: "demo@example.com",
-    })
+    console.log("[v0] Demo user created in auth.users:", authData.user.id)
 
-    // Create user profile
-    await supabase.from("user_profiles").upsert({
-      user_id: authData.user.id,
-      name: "Adam",
-      surname: "Smith",
-      birth_number: "7711097383",
-    })
+    const { error: usersError } = await supabase.from("users").upsert(
+      {
+        id: authData.user.id,
+        email: "demo@example.com",
+      },
+      {
+        onConflict: "id",
+      },
+    )
+
+    if (usersError) {
+      console.error("[v0] Error creating users record:", usersError)
+      throw usersError
+    }
+
+    console.log("[v0] Created public.users record")
+
+    const { error: profileError } = await supabase.from("user_profiles").upsert(
+      {
+        user_id: authData.user.id,
+        name: "Adam",
+        surname: "Smith",
+        birth_number: "7711097383",
+      },
+      {
+        onConflict: "user_id",
+      },
+    )
+
+    if (profileError) {
+      console.error("[v0] Error creating user profile:", profileError)
+      throw profileError
+    }
+
+    console.log("[v0] Created user profile")
 
     return { success: true, userId: authData.user.id }
   } catch (error: any) {
-    console.error("[v0] Setup demo user error:", error)
+    console.error("[v0] Setup demo user error:", error.message)
     return { success: false, error: error.message }
   }
 }
