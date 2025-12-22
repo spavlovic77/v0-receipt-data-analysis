@@ -180,25 +180,29 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
 
         console.log("[v0] User authenticated, saving receipt immediately")
         const saveResult = await saveScannedReceipt(receiptId, dic, receipt)
+        console.log("[v0] Save result:", saveResult)
 
         if (saveResult.error) {
           if (saveResult.error === "DUPLICATE") {
-            console.log("[v0] Duplicate receipt detected")
+            console.log("[v0] Duplicate receipt detected, showing modal")
             setDuplicateReceiptInfo({
               receiptId,
               scannedAt: saveResult.scannedAt,
             })
             setShowDuplicateDialog(true)
+            setLoadingReceipt(false)
+            return // Stop here, don't call onUpload
           } else {
             console.error("[v0] Error saving receipt:", saveResult.error)
             alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+            setLoadingReceipt(false)
+            return // Stop here, don't call onUpload
           }
-          setLoadingReceipt(false)
-          return
-        } else {
-          console.log("[v0] Receipt saved with signature:", saveResult.signedMessage)
         }
 
+        console.log("[v0] Receipt saved successfully with signature:", saveResult.signedMessage)
+
+        // Only call onUpload if everything succeeded
         setFileName(fileName)
         onUpload(dataString)
       } catch (error) {
@@ -229,6 +233,7 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
           pendingReceipt.dic,
           pendingReceipt.receipt,
         )
+        console.log("[v0] Pending receipt save result:", saveResult)
 
         if (saveResult.error) {
           if (saveResult.error === "DUPLICATE") {
@@ -239,16 +244,18 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
             })
             setShowDuplicateDialog(true)
             setPendingReceipt(null)
-            return
+            return // Stop here, don't upload
           } else {
             console.error("[v0] Error saving pending receipt:", saveResult.error)
             alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+            setPendingReceipt(null)
+            return // Stop here, don't upload
           }
-        } else {
-          console.log("[v0] Pending receipt saved with signature:", saveResult.signedMessage)
         }
 
-        // Upload the data for processing
+        console.log("[v0] Pending receipt saved successfully with signature:", saveResult.signedMessage)
+
+        // Only upload if everything succeeded
         setFileName(pendingReceipt.fileName)
         onUpload(pendingReceipt.dataString)
 
