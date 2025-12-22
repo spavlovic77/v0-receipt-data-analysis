@@ -56,8 +56,8 @@ export async function fetchReceiptById(receiptId: string): Promise<ParsedReceipt
 
     const receipt: ParsedReceipt = {
       id: generateId(),
-      receiptNumber: receiptData.receiptNumber || receiptData.receiptId,
-      cashRegisterCode: receiptData.cashRegisterCode,
+      receiptNumber: receiptData.receiptNumber || receiptData.receiptId || receiptId,
+      cashRegisterCode: receiptData.dic || receiptData.cashRegisterCode || receiptData.organizationTaxId || "unknown",
       timestamp: receiptData.createDate ? new Date(receiptData.createDate) : new Date(),
       items,
       totalAmount:
