@@ -200,12 +200,12 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
           <p className="font-medium text-sm md:text-base mb-1">
             {fileName || (
               <>
-                <span className="hidden sm:inline">Presuňte sem eKasa súbor</span>
+                <span className="hidden sm:inline">Presuňte sem vzorový dataset</span>
                 <span className="sm:hidden">Nahrať súbor</span>
               </>
             )}
           </p>
-          <p className="text-xs text-muted-foreground">{fileName ? "Spracovávam..." : "XML, TXT alebo LOG formát"}</p>
+          <p className="text-xs text-muted-foreground">{fileName ? "Spracovávam..." : "TXT formát"}</p>
         </div>
       </div>
 
