@@ -32,7 +32,7 @@ interface CDPSignatureResponse {
 export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPWalletResponse | null> {
   try {
     const apiKey = process.env.CDP_API_KEY_NAME
-    const privateKey = process.env.CDP_API_PRIVATE_KEY
+    const privateKey = process.env.CDP_PRIVATE_KEY
 
     if (!apiKey || !privateKey) {
       console.error("[v0] CDP API credentials not configured")
@@ -81,7 +81,7 @@ export async function signMessageWithCDPWallet(
 ): Promise<string | null> {
   try {
     const apiKey = process.env.CDP_API_KEY_NAME
-    const privateKey = process.env.CDP_API_PRIVATE_KEY
+    const privateKey = process.env.CDP_PRIVATE_KEY
 
     if (!apiKey || !privateKey) {
       console.error("[v0] CDP API credentials not configured")
@@ -141,7 +141,7 @@ async function generateCDPToken(apiKey: string, privateKey: string): Promise<str
 export async function getCDPWallet(walletId: string): Promise<CDPWalletResponse | null> {
   try {
     const apiKey = process.env.CDP_API_KEY_NAME
-    const privateKey = process.env.CDP_API_PRIVATE_KEY
+    const privateKey = process.env.CDP_PRIVATE_KEY
 
     if (!apiKey || !privateKey) {
       return null
