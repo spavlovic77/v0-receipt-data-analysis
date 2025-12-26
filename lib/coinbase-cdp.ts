@@ -125,6 +125,22 @@ async function generateCDPToken(apiKey: string, privateKey: string): Promise<str
   // Import JWT library dynamically
   const jwt = await import("jsonwebtoken")
 
+  // The private key should be in PEM format with proper newlines
+  // If stored as a single line with \n, we need to replace \\n with actual newlines
+  let formattedKey = privateKey
+
+  // Check if key contains escaped newlines and replace them
+  if (privateKey.includes("\\n")) {
+    formattedKey = privateKey.replace(/\\n/g, "\n")
+  }
+
+  // Validate PEM format
+  if (!formattedKey.includes("BEGIN") || !formattedKey.includes("END")) {
+    console.error("[v0] CDP private key must be in PEM format")
+    console.error("[v0] Expected format: -----BEGIN EC PRIVATE KEY-----\\n...\\n-----END EC PRIVATE KEY-----")
+    throw new Error("Invalid CDP private key format. Please use PEM formatted ES256 ECDSA key.")
+  }
+
   const payload = {
     sub: apiKey,
     iss: "coinbase-cloud",
@@ -132,7 +148,12 @@ async function generateCDPToken(apiKey: string, privateKey: string): Promise<str
     exp: Math.floor(Date.now() / 1000) + 120, // 2 minutes
   }
 
-  return jwt.default.sign(payload, privateKey, { algorithm: "ES256" })
+  try {
+    return jwt.default.sign(payload, formattedKey, { algorithm: "ES256" })
+  } catch (error) {
+    console.error("[v0] JWT signing failed:", error)
+    throw new Error("Failed to sign JWT. Ensure your CDP private key is a valid ES256 ECDSA key in PEM format.")
+  }
 }
 
 /**

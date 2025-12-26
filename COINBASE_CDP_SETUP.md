@@ -18,23 +18,50 @@ Coinbase Developer Platform (CDP) Wallets allow you to programmatically create a
 
 1. In your CDP project dashboard, go to **API Keys**
 2. Click **Create API Key**
-3. Select permissions: `wallet:read`, `wallet:create`, `wallet:sign`
-4. Download the API key JSON file - it contains:
-   - `name`: Your API key name
-   - `privateKey`: Your API private key (ES256 format)
+3. **CRITICAL:** Select **ES256 (ECDSA)** as the key type (NOT Ed25519)
+4. Select permissions: `wallet:read`, `wallet:create`, `wallet:sign`
+5. Download the API key JSON file - it contains:
+   - `name`: Your API key ID (e.g., `165e6f4e-50f6-4e3e-922b-ad2846fc1140`)
+   - `privateKey`: Your API private key in PEM format
 
-### 3. Add Environment Variables
+### 3. Verify Private Key Format
 
-Add the following to your `.env.local` file:
+Your private key MUST be in PEM format and look like this:
 
-```bash
-CDP_API_KEY_NAME=organizations/your-org-id/apiKeys/your-key-id
-CDP_API_PRIVATE_KEY="-----BEGIN EC PRIVATE KEY-----\nYour private key here\n-----END EC PRIVATE KEY-----"
+```
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEICOpQ2jzABC123...multiple lines of base64...XYZ789
+asdfASDF1234+/=
+-----END EC PRIVATE KEY-----
 ```
 
-**Important:** Keep your private key secure and never commit it to version control.
+**Common Mistake:** The key you get from CDP might be a simple base64 string like `HUwVyxs1zUXWF9eg...`. This is NOT the correct format. You need the full PEM-formatted key with BEGIN/END markers.
 
-### 4. Install Dependencies
+### 4. Add Environment Variables
+
+**For v0 (current environment):**
+Add in the **Vars** section of the in-chat sidebar:
+
+```
+CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
+CDP_PRIVATE_KEY=-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI...\n-----END EC PRIVATE KEY-----
+CDP_NETWORK_ID=base-sepolia
+```
+
+**For local development (`.env.local`):**
+
+```bash
+CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
+CDP_PRIVATE_KEY="-----BEGIN EC PRIVATE KEY-----\nYour private key here\n-----END EC PRIVATE KEY-----"
+CDP_NETWORK_ID=base-sepolia
+```
+
+**Important:** 
+- Use `\n` (backslash-n) for line breaks when storing as a single-line string
+- Keep your private key secure and never commit it to version control
+- The key must be ES256 ECDSA format, NOT Ed25519
+
+### 5. Install Dependencies
 
 The app requires the `jsonwebtoken` package for CDP authentication:
 
@@ -43,7 +70,7 @@ npm install jsonwebtoken
 npm install --save-dev @types/jsonwebtoken
 ```
 
-### 5. How It Works
+### 6. How It Works
 
 #### Automatic Wallet Creation
 
