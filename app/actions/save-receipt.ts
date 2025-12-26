@@ -58,11 +58,11 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
   const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
 
   console.log("[v0] Signing message with CDP wallet:", {
-    walletId: wallet.wallet_id,
+    walletAddress: wallet.default_address,
     message,
   })
 
-  const signedMessage = await signMessageWithCDPWallet(wallet.wallet_id, wallet.default_address, message)
+  const signedMessage = await signMessageWithCDPWallet(wallet.default_address, message)
 
   if (!signedMessage) {
     return { error: "Failed to sign message with wallet" }

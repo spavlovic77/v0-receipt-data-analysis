@@ -21,22 +21,20 @@ export async function createUserWallet(userId: string) {
       return { success: true, wallet: existingWallet }
     }
 
-    // Create new CDP wallet
-    const cdpWallet = await createCDPWallet("base-sepolia")
+    const cdpAccount = await createCDPWallet("base-sepolia")
 
-    if (!cdpWallet) {
-      console.error("[v0] Failed to create CDP wallet")
+    if (!cdpAccount) {
+      console.error("[v0] Failed to create CDP account")
       return { success: false, error: "Failed to create wallet" }
     }
 
-    // Store wallet info in database
     const { data: wallet, error } = await supabase
       .from("wallets")
       .insert({
         user_id: userId,
-        wallet_id: cdpWallet.wallet.id,
-        network_id: cdpWallet.wallet.network_id,
-        default_address: cdpWallet.wallet.default_address.public_key,
+        wallet_id: cdpAccount.accountId,
+        network_id: cdpAccount.networkId,
+        default_address: cdpAccount.address,
       })
       .select()
       .single()

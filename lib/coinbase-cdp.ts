@@ -2,162 +2,131 @@
 
 /**
  * Coinbase Developer Platform (CDP) Wallet Integration
- * Using official @coinbase/coinbase-sdk for wallet management
+ * Using official @coinbase/cdp-sdk for wallet management
  */
 
-import { Coinbase, Wallet } from "@coinbase/coinbase-sdk"
+import { CdpClient } from "@coinbase/cdp-sdk"
 
-let coinbaseInstance: Coinbase | null = null
+let cdpClientInstance: CdpClient | null = null
 
 /**
- * Convert base64 private key to PEM format if needed
+ * Get or create CDP client instance
  */
-function ensurePEMFormat(privateKey: string): string {
-  if (privateKey.includes("BEGIN EC PRIVATE KEY")) {
-    console.log("[v0] Private key is already in PEM format")
-    return privateKey
+function getCDPClient(): CdpClient {
+  if (cdpClientInstance) {
+    return cdpClientInstance
   }
 
-  console.log("[v0] Converting base64 key to PEM format")
+  const apiKeyId = process.env.CDP_API_KEY_NAME // ID from CDP JSON
+  const apiKeySecret = process.env.CDP_PRIVATE_KEY // privateKey from CDP JSON (base64 format)
 
-  // The base64 string from CDP JSON needs PEM wrapping
-  // Format: -----BEGIN EC PRIVATE KEY-----\nBASE64\n-----END EC PRIVATE KEY-----\n
-  const pemKey = `-----BEGIN EC PRIVATE KEY-----\n${privateKey}\n-----END EC PRIVATE KEY-----\n`
-
-  return pemKey
-}
-
-/**
- * Get or create Coinbase SDK instance
- */
-function getCoinbaseClient(): Coinbase {
-  if (coinbaseInstance) {
-    return coinbaseInstance
+  if (!apiKeyId || !apiKeySecret) {
+    throw new Error("CDP API credentials not configured. Please set CDP_API_KEY_NAME and CDP_PRIVATE_KEY")
   }
 
-  const apiKeyName = process.env.CDP_API_KEY_NAME
-  const privateKeyRaw = process.env.CDP_PRIVATE_KEY
-
-  if (!apiKeyName || !privateKeyRaw) {
-    throw new Error("CDP API credentials not configured")
-  }
-
-  console.log("[v0] Initializing Coinbase CDP SDK")
-  console.log("[v0] API Key Name:", apiKeyName)
-  console.log("[v0] API Key Name length:", apiKeyName.length)
-  console.log("[v0] Private Key length (raw):", privateKeyRaw.length)
-  console.log("[v0] Private Key starts with:", privateKeyRaw.substring(0, 30))
+  console.log("[v0] Initializing CDP SDK")
+  console.log("[v0] API Key ID:", apiKeyId)
 
   try {
-    const privateKey = ensurePEMFormat(privateKeyRaw)
-    console.log("[v0] Private Key formatted length:", privateKey.length)
-    console.log("[v0] Private Key formatted (first 50 chars):", privateKey.substring(0, 50))
-
-    coinbaseInstance = new Coinbase({
-      apiKeyName: apiKeyName,
-      privateKey: privateKey,
+    cdpClientInstance = new CdpClient({
+      apiKeyId: apiKeyId,
+      apiKeySecret: apiKeySecret,
     })
 
-    console.log("[v0] Coinbase SDK initialized successfully")
+    console.log("[v0] CDP SDK initialized successfully")
   } catch (error) {
-    console.error("[v0] Failed to initialize Coinbase SDK:", error)
+    console.error("[v0] Failed to initialize CDP SDK:", error)
     throw error
   }
 
-  return coinbaseInstance
+  return cdpClientInstance
 }
 
-interface CDPWalletData {
-  walletId: string
+interface CDPAccountData {
+  accountId: string
   networkId: string
-  defaultAddress: string
+  address: string
 }
 
 /**
- * Create a new CDP wallet for a user
+ * Create a new CDP EVM account for a user
  */
-export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPWalletData | null> {
+export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPAccountData | null> {
   try {
-    console.log("[v0] Creating CDP wallet on network:", networkId)
+    console.log("[v0] Creating CDP EVM account on network:", networkId)
 
-    const coinbase = getCoinbaseClient()
+    const cdp = getCDPClient()
 
-    console.log("[v0] Coinbase client obtained, creating wallet...")
+    const account = await cdp.evm.createAccount({
+      name: `user-account-${Date.now()}`,
+    })
 
-    // Create a new wallet
-    const wallet = await Wallet.create({ networkId })
-
-    console.log("[v0] CDP wallet created:", wallet.getId())
-    console.log("[v0] Default address:", wallet.getDefaultAddress()?.getId())
+    console.log("[v0] CDP account created")
+    console.log("[v0] Account address:", account.address)
 
     return {
-      walletId: wallet.getId() || "",
+      accountId: account.address, // Using address as unique identifier
       networkId: networkId,
-      defaultAddress: wallet.getDefaultAddress()?.getId() || "",
+      address: account.address,
     }
   } catch (error: any) {
-    console.error("[v0] Error creating CDP wallet:", error)
+    console.error("[v0] Error creating CDP account:", error)
     console.error("[v0] Error details:", {
       message: error?.message,
-      httpCode: error?.httpCode,
-      apiCode: error?.apiCode,
-      apiMessage: error?.apiMessage,
-      correlationId: error?.correlationId,
+      stack: error?.stack,
     })
     return null
   }
 }
 
 /**
- * Sign a message using a CDP wallet
+ * Sign a message using a CDP account
  */
-export async function signMessageWithCDPWallet(walletId: string, message: string): Promise<string | null> {
+export async function signMessageWithCDPWallet(accountAddress: string, message: string): Promise<string | null> {
   try {
-    console.log("[v0] Signing message with CDP wallet:", walletId)
+    console.log("[v0] Signing message with CDP account:", accountAddress)
 
-    const coinbase = getCoinbaseClient()
+    const cdp = getCDPClient()
 
-    // Import the wallet by ID (requires wallet data to be stored)
-    // For now, we'll use a simpler approach - create a signature directly
-    const wallet = await Wallet.fetch(walletId)
+    const account = await cdp.evm.getOrCreateAccount({
+      name: `user-account-${accountAddress}`,
+    })
 
-    if (!wallet) {
-      console.error("[v0] Wallet not found:", walletId)
-      return null
-    }
-
-    // Sign the message
-    const signature = await wallet.getDefaultAddress()?.signMessage(message)
+    // Sign the message using the account
+    const signature = await account.signMessage(message)
 
     console.log("[v0] Message signed successfully")
+    console.log("[v0] Signature:", signature)
 
-    return signature || null
+    return signature
   } catch (error) {
-    console.error("[v0] Error signing message with CDP wallet:", error)
+    console.error("[v0] Error signing message with CDP account:", error)
     return null
   }
 }
 
 /**
- * Get wallet information
+ * Get account information
  */
-export async function getCDPWallet(walletId: string): Promise<CDPWalletData | null> {
+export async function getCDPAccount(accountAddress: string): Promise<CDPAccountData | null> {
   try {
-    const coinbase = getCoinbaseClient()
+    const cdp = getCDPClient()
 
-    const wallet = await Wallet.fetch(walletId)
+    const account = await cdp.evm.getOrCreateAccount({
+      name: `user-account-${accountAddress}`,
+    })
 
-    if (!wallet) {
+    if (!account) {
       return null
     }
 
     return {
-      walletId: wallet.getId() || "",
-      networkId: wallet.getNetworkId() || "base-sepolia",
-      defaultAddress: wallet.getDefaultAddress()?.getId() || "",
+      accountId: account.address,
+      networkId: "base-sepolia",
+      address: account.address,
     }
   } catch (error) {
-    console.error("[v0] Error getting CDP wallet:", error)
+    console.error("[v0] Error getting CDP account:", error)
     return null
   }
 }

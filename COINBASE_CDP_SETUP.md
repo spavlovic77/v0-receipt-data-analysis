@@ -39,7 +39,7 @@ CDP_NETWORK_ID=base-sepolia
 
 Use the exact values from your CDP JSON file:
 - `CDP_API_KEY_NAME` = the `id` field
-- `CDP_PRIVATE_KEY` = the `privateKey` field (base64 string)
+- `CDP_PRIVATE_KEY` = the `privateKey` field (base64 string as-is)
 - `CDP_NETWORK_ID` = `base-sepolia` for testnet
 
 **For local development (`.env.local`):**
@@ -52,14 +52,15 @@ CDP_NETWORK_ID=base-sepolia
 
 **Important:** 
 - Keep your private key secure and never commit it to version control
-- The privateKey is a base64-encoded string from the CDP JSON file
+- The privateKey is a base64-encoded string - use it exactly as provided in the CDP JSON file
+- No PEM conversion needed - the SDK handles the format internally
 
 ### 4. Install Dependencies
 
-The app uses the official Coinbase SDK:
+The app uses the official Coinbase CDP SDK:
 
 ```bash
-npm install @coinbase/coinbase-sdk
+npm install @coinbase/cdp-sdk
 ```
 
 ### 5. How It Works
@@ -68,18 +69,18 @@ npm install @coinbase/coinbase-sdk
 
 When a user signs up or logs in:
 1. The system checks if the user has a CDP wallet
-2. If not, it automatically creates one using the Coinbase SDK
-3. The wallet is stored in the `wallets` table with:
-   - `wallet_id`: CDP wallet identifier
+2. If not, it automatically creates an EVM account using `cdp.evm.createAccount()`
+3. The account is stored in the `wallets` table with:
+   - `wallet_id`: Account address (used as identifier)
    - `network_id`: Blockchain network (default: base-sepolia)
-   - `default_address`: The wallet's public address
+   - `default_address`: The account's public address
 
 #### Receipt Signing
 
 When a user scans a receipt:
-1. The system retrieves the user's CDP wallet
+1. The system retrieves the user's CDP account
 2. Creates a message: `receiptId:name:surname:birthNumber:dic`
-3. Signs the message using the CDP wallet via SDK
+3. Signs the message using `account.signMessage()`
 4. Stores the signature in the `scanned_receipts` table
 
 #### Verification
@@ -87,11 +88,11 @@ When a user scans a receipt:
 External systems can verify receipt authenticity:
 1. Hash the receipt data locally
 2. Send the hash to `/api/verify-receipt`
-3. The API verifies the signature matches the expected wallet address
+3. The API verifies the signature matches the expected account address
 
 ## Network Configuration
 
-By default, wallets are created on **Base Sepolia** (testnet). To use mainnet:
+By default, accounts are created on **Base Sepolia** (testnet). To use mainnet:
 
 1. Update `network_id` in `lib/coinbase-cdp.ts`:
    ```typescript
@@ -114,14 +115,15 @@ By default, wallets are created on **Base Sepolia** (testnet). To use mainnet:
 - Private keys never leave CDP's Trusted Execution Environment
 - Users don't need to manage wallets manually
 - All signing happens server-side via CDP SDK
-- Wallet addresses are tied to user accounts in the database
+- Account addresses are tied to user accounts in the database
 - The SDK handles all authentication and encryption automatically
 
 ## Troubleshooting
 
 ### "CDP API credentials not configured"
-- Check that `CDP_API_KEY_NAME` and `CDP_PRIVATE_KEY` are set
+- Check that `CDP_API_KEY_NAME` and `CDP_PRIVATE_KEY` are set in the Vars section
 - Verify you copied the exact values from the CDP JSON file
+- Make sure you're using the `id` field for CDP_API_KEY_NAME, not "API Key Name"
 
 ### "Database error creating new user"
 - Ensure the `wallets` table exists (run migration 004)
@@ -129,17 +131,22 @@ By default, wallets are created on **Base Sepolia** (testnet). To use mainnet:
 
 ### "Failed to sign message with wallet"
 - Verify CDP API key has wallet permissions
-- Check that the wallet_id is correct
+- Check that the account address is correct
 - Ensure you're not hitting rate limits
 
 ### SDK Import Errors
-- Make sure `@coinbase/coinbase-sdk` is installed
+- Make sure `@coinbase/cdp-sdk` is installed (not `@coinbase/coinbase-sdk`)
 - Check that your Node.js version is compatible (Node 18+)
+
+### 401 Authentication Errors
+- Verify the `privateKey` value is exactly as provided in the CDP JSON (base64 string)
+- Do not modify or convert the private key - use it as-is
+- Ensure your CDP API key is active and not expired
 
 ## Cost Considerations
 
 CDP wallet creation and signing operations may incur costs depending on:
-- Number of wallets created
+- Number of accounts created
 - Number of signing operations
 - Network fees (for on-chain transactions)
 
@@ -149,7 +156,7 @@ Check [CDP Pricing](https://www.coinbase.com/cloud/pricing) for current rates.
 
 **Development (Testnet):**
 - Use `base-sepolia` or `ethereum-sepolia`
-- Free to create wallets and sign messages
+- Free to create accounts and sign messages
 - No real funds involved
 
 **Production (Mainnet):**
