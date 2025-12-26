@@ -27,11 +27,12 @@ function getCoinbaseClient(): Coinbase {
   console.log("[v0] Initializing Coinbase CDP SDK")
   console.log("[v0] API Key Name length:", apiKeyName?.length)
   console.log("[v0] Private Key length:", privateKey?.length)
-  console.log("[v0] API Key Name (first 10 chars):", apiKeyName?.substring(0, 10))
 
   try {
-    Coinbase.configure({ apiKeyName, privateKey })
-    coinbaseInstance = new Coinbase()
+    coinbaseInstance = new Coinbase({
+      apiKeyName: apiKeyName,
+      privateKey: privateKey,
+    })
     console.log("[v0] Coinbase SDK initialized successfully")
   } catch (error) {
     console.error("[v0] Failed to initialize Coinbase SDK:", error)
