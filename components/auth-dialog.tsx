@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { createUserWallet } from "@/app/actions/create-user-wallet"
 
 interface AuthDialogProps {
   open: boolean
@@ -30,11 +31,17 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
+
+      if (data.user) {
+        console.log("[v0] Creating wallet for user after login")
+        await createUserWallet(data.user.id)
+      }
+
       onSuccess()
       onOpenChange(false)
       router.refresh()
@@ -57,7 +64,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
 
       console.log("[v0] Attempting demo login with:", DEMO_EMAIL)
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
       })
@@ -65,6 +72,11 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
       if (error) {
         console.error("[v0] Demo login error:", error)
         throw error
+      }
+
+      if (data.user) {
+        console.log("[v0] Creating wallet for demo user")
+        await createUserWallet(data.user.id)
       }
 
       console.log("[v0] Demo login successful")

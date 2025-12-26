@@ -1,7 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { signMessage } from "@/lib/crypto"
+import { signMessageWithCDPWallet } from "@/lib/coinbase-cdp"
+import { createUserWallet, getUserWallet } from "./create-user-wallet"
 
 export async function saveScannedReceipt(receiptId: string, dic: string, receiptData: any) {
   const supabase = await createClient()
@@ -43,28 +44,29 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: "User profile not found. Please complete your profile first." }
   }
 
-  // Get user's private key from metadata (or generate one if doesn't exist)
-  let privateKey = user.user_metadata?.eth_private_key
+  let wallet = await getUserWallet(user.id)
 
-  if (!privateKey) {
-    // Generate new key pair for user
-    const { generateKeyPair } = await import("@/lib/crypto")
-    const keyPair = generateKeyPair()
-    privateKey = keyPair.privateKey
-
-    // Update user metadata with private key and public address
-    await supabase.auth.updateUser({
-      data: {
-        eth_private_key: privateKey,
-        eth_address: keyPair.publicKey,
-      },
-    })
+  if (!wallet) {
+    console.log("[v0] Creating CDP wallet for user")
+    const result = await createUserWallet(user.id)
+    if (!result.success || !result.wallet) {
+      return { error: "Failed to create wallet for user" }
+    }
+    wallet = result.wallet
   }
 
   const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
 
-  // Sign the message
-  const signedMessage = signMessage(message, privateKey)
+  console.log("[v0] Signing message with CDP wallet:", {
+    walletId: wallet.wallet_id,
+    message,
+  })
+
+  const signedMessage = await signMessageWithCDPWallet(wallet.wallet_id, wallet.default_address, message)
+
+  if (!signedMessage) {
+    return { error: "Failed to sign message with wallet" }
+  }
 
   console.log("[v0] Saving receipt:", {
     receiptId,
