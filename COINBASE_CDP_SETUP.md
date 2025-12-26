@@ -1,6 +1,6 @@
 # Coinbase Developer Platform (CDP) Wallet Integration Setup
 
-This application uses Coinbase CDP to create and manage custodial wallets for users automatically.
+This application uses Coinbase CDP SDK to create and manage custodial wallets for users automatically.
 
 ## What is CDP?
 
@@ -18,65 +18,57 @@ Coinbase Developer Platform (CDP) Wallets allow you to programmatically create a
 
 1. In your CDP project dashboard, go to **API Keys**
 2. Click **Create API Key**
-3. **CRITICAL:** Select **ES256 (ECDSA)** as the key type (NOT Ed25519)
-4. Select permissions: `wallet:read`, `wallet:create`, `wallet:sign`
-5. Download the API key JSON file - it contains:
-   - `name`: Your API key ID (e.g., `165e6f4e-50f6-4e3e-922b-ad2846fc1140`)
-   - `privateKey`: Your API private key in PEM format
+3. Download the API key JSON file - it will look like this:
+   ```json
+   {
+     "id": "165e6f4e-50f6-4e3e-922b-ad2846fc1140",
+     "privateKey": "HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag=="
+   }
+   ```
 
-### 3. Verify Private Key Format
-
-Your private key MUST be in PEM format and look like this:
-
-```
------BEGIN EC PRIVATE KEY-----
-MHcCAQEEICOpQ2jzABC123...multiple lines of base64...XYZ789
-asdfASDF1234+/=
------END EC PRIVATE KEY-----
-```
-
-**Common Mistake:** The key you get from CDP might be a simple base64 string like `HUwVyxs1zUXWF9eg...`. This is NOT the correct format. You need the full PEM-formatted key with BEGIN/END markers.
-
-### 4. Add Environment Variables
+### 3. Add Environment Variables
 
 **For v0 (current environment):**
 Add in the **Vars** section of the in-chat sidebar:
 
 ```
 CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
-CDP_PRIVATE_KEY=-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEI...\n-----END EC PRIVATE KEY-----
+CDP_PRIVATE_KEY=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
 CDP_NETWORK_ID=base-sepolia
 ```
+
+Use the exact values from your CDP JSON file:
+- `CDP_API_KEY_NAME` = the `id` field
+- `CDP_PRIVATE_KEY` = the `privateKey` field (base64 string)
+- `CDP_NETWORK_ID` = `base-sepolia` for testnet
 
 **For local development (`.env.local`):**
 
 ```bash
 CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
-CDP_PRIVATE_KEY="-----BEGIN EC PRIVATE KEY-----\nYour private key here\n-----END EC PRIVATE KEY-----"
+CDP_PRIVATE_KEY=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
 CDP_NETWORK_ID=base-sepolia
 ```
 
 **Important:** 
-- Use `\n` (backslash-n) for line breaks when storing as a single-line string
 - Keep your private key secure and never commit it to version control
-- The key must be ES256 ECDSA format, NOT Ed25519
+- The privateKey is a base64-encoded string from the CDP JSON file
 
-### 5. Install Dependencies
+### 4. Install Dependencies
 
-The app requires the `jsonwebtoken` package for CDP authentication:
+The app uses the official Coinbase SDK:
 
 ```bash
-npm install jsonwebtoken
-npm install --save-dev @types/jsonwebtoken
+npm install @coinbase/coinbase-sdk
 ```
 
-### 6. How It Works
+### 5. How It Works
 
 #### Automatic Wallet Creation
 
 When a user signs up or logs in:
 1. The system checks if the user has a CDP wallet
-2. If not, it automatically creates one using `createUserWallet()`
+2. If not, it automatically creates one using the Coinbase SDK
 3. The wallet is stored in the `wallets` table with:
    - `wallet_id`: CDP wallet identifier
    - `network_id`: Blockchain network (default: base-sepolia)
@@ -87,7 +79,7 @@ When a user signs up or logs in:
 When a user scans a receipt:
 1. The system retrieves the user's CDP wallet
 2. Creates a message: `receiptId:name:surname:birthNumber:dic`
-3. Signs the message using the CDP wallet via API
+3. Signs the message using the CDP wallet via SDK
 4. Stores the signature in the `scanned_receipts` table
 
 #### Verification
@@ -121,23 +113,28 @@ By default, wallets are created on **Base Sepolia** (testnet). To use mainnet:
 
 - Private keys never leave CDP's Trusted Execution Environment
 - Users don't need to manage wallets manually
-- All signing happens server-side via CDP API
+- All signing happens server-side via CDP SDK
 - Wallet addresses are tied to user accounts in the database
+- The SDK handles all authentication and encryption automatically
 
 ## Troubleshooting
 
 ### "CDP API credentials not configured"
-- Check that `CDP_API_KEY_NAME` and `CDP_API_PRIVATE_KEY` are set
-- Verify the private key format includes the PEM headers
+- Check that `CDP_API_KEY_NAME` and `CDP_PRIVATE_KEY` are set
+- Verify you copied the exact values from the CDP JSON file
 
 ### "Database error creating new user"
 - Ensure the `wallets` table exists (run migration 004)
 - Check that user has a profile in `user_profiles` table
 
 ### "Failed to sign message with wallet"
-- Verify CDP API key has `wallet:sign` permission
-- Check that the wallet_id and address are correct
+- Verify CDP API key has wallet permissions
+- Check that the wallet_id is correct
 - Ensure you're not hitting rate limits
+
+### SDK Import Errors
+- Make sure `@coinbase/coinbase-sdk` is installed
+- Check that your Node.js version is compatible (Node 18+)
 
 ## Cost Considerations
 
