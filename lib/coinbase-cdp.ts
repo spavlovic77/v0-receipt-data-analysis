@@ -2,12 +2,30 @@
 
 /**
  * Coinbase Developer Platform (CDP) Wallet Integration
- * Using official @coinbase/cdp-sdk for wallet management
+ * Using official @coinbase/coinbase-sdk for wallet management
  */
 
 import { Coinbase, Wallet } from "@coinbase/coinbase-sdk"
 
 let coinbaseInstance: Coinbase | null = null
+
+/**
+ * Convert base64 private key to PEM format if needed
+ */
+function ensurePEMFormat(privateKey: string): string {
+  if (privateKey.includes("BEGIN EC PRIVATE KEY")) {
+    console.log("[v0] Private key is already in PEM format")
+    return privateKey
+  }
+
+  console.log("[v0] Converting base64 key to PEM format")
+
+  // The base64 string from CDP JSON needs PEM wrapping
+  // Format: -----BEGIN EC PRIVATE KEY-----\nBASE64\n-----END EC PRIVATE KEY-----\n
+  const pemKey = `-----BEGIN EC PRIVATE KEY-----\n${privateKey}\n-----END EC PRIVATE KEY-----\n`
+
+  return pemKey
+}
 
 /**
  * Get or create Coinbase SDK instance
@@ -18,21 +36,28 @@ function getCoinbaseClient(): Coinbase {
   }
 
   const apiKeyName = process.env.CDP_API_KEY_NAME
-  const privateKey = process.env.CDP_PRIVATE_KEY
+  const privateKeyRaw = process.env.CDP_PRIVATE_KEY
 
-  if (!apiKeyName || !privateKey) {
+  if (!apiKeyName || !privateKeyRaw) {
     throw new Error("CDP API credentials not configured")
   }
 
   console.log("[v0] Initializing Coinbase CDP SDK")
-  console.log("[v0] API Key Name length:", apiKeyName?.length)
-  console.log("[v0] Private Key length:", privateKey?.length)
+  console.log("[v0] API Key Name:", apiKeyName)
+  console.log("[v0] API Key Name length:", apiKeyName.length)
+  console.log("[v0] Private Key length (raw):", privateKeyRaw.length)
+  console.log("[v0] Private Key starts with:", privateKeyRaw.substring(0, 30))
 
   try {
+    const privateKey = ensurePEMFormat(privateKeyRaw)
+    console.log("[v0] Private Key formatted length:", privateKey.length)
+    console.log("[v0] Private Key formatted (first 50 chars):", privateKey.substring(0, 50))
+
     coinbaseInstance = new Coinbase({
       apiKeyName: apiKeyName,
       privateKey: privateKey,
     })
+
     console.log("[v0] Coinbase SDK initialized successfully")
   } catch (error) {
     console.error("[v0] Failed to initialize Coinbase SDK:", error)
@@ -77,6 +102,7 @@ export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPWa
       httpCode: error?.httpCode,
       apiCode: error?.apiCode,
       apiMessage: error?.apiMessage,
+      correlationId: error?.correlationId,
     })
     return null
   }
