@@ -19,16 +19,25 @@ function getCDPClient(): CdpClient {
 
   const apiKeyId = process.env.CDP_API_KEY_NAME || process.env.CDP_API_KEY_ID
   const apiKeySecret = process.env.CDP_PRIVATE_KEY || process.env.CDP_API_KEY_SECRET
-  // CDP_WALLET_SECRET is optional for some operations, generate a default if not provided
-  const walletSecret = process.env.CDP_WALLET_SECRET || `wallet-secret-${Date.now()}`
+  const walletSecret = process.env.CDP_WALLET_SECRET
 
   if (!apiKeyId || !apiKeySecret) {
-    throw new Error("CDP API credentials not configured. Please set CDP_API_KEY_NAME and CDP_PRIVATE_KEY")
+    throw new Error(
+      "CDP API credentials not configured. Please set CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET",
+    )
+  }
+
+  if (!walletSecret) {
+    throw new Error(
+      "CDP_WALLET_SECRET is required. Please generate a wallet secret from the CDP Portal. " +
+        "Visit https://portal.cdp.coinbase.com/ and create a wallet secret for your project.",
+    )
   }
 
   console.log("[v0] Initializing CDP SDK")
   console.log("[v0] API Key ID length:", apiKeyId.length)
   console.log("[v0] API Key Secret length:", apiKeySecret.length)
+  console.log("[v0] Wallet Secret length:", walletSecret.length)
 
   try {
     cdpClientInstance = new CdpClient({

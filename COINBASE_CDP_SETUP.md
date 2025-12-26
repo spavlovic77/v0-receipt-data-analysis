@@ -16,6 +16,8 @@ Coinbase Developer Platform (CDP) Wallets allow you to programmatically create a
 
 ### 2. Generate API Credentials
 
+#### A. Create API Key
+
 1. In your CDP project dashboard, go to **API Keys**
 2. Click **Create API Key**
 3. Download the API key JSON file - it will look like this:
@@ -26,34 +28,45 @@ Coinbase Developer Platform (CDP) Wallets allow you to programmatically create a
    }
    ```
 
+#### B. Create Wallet Secret
+
+1. In the CDP Portal, go to **Wallet Secrets**
+2. Click **Create Wallet Secret**
+3. Copy the generated secret (you'll need this for CDP_WALLET_SECRET)
+4. **IMPORTANT:** Save this secret securely - you cannot retrieve it again!
+
 ### 3. Add Environment Variables
 
 **For v0 (current environment):**
 Add in the **Vars** section of the in-chat sidebar:
 
 ```
-CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
-CDP_PRIVATE_KEY=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
+CDP_API_KEY_ID=165e6f4e-50f6-4e3e-922b-ad2846fc1140
+CDP_API_KEY_SECRET=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
+CDP_WALLET_SECRET=your-wallet-secret-from-cdp-portal
 CDP_NETWORK_ID=base-sepolia
 ```
 
-Use the exact values from your CDP JSON file:
-- `CDP_API_KEY_NAME` = the `id` field
-- `CDP_PRIVATE_KEY` = the `privateKey` field (base64 string as-is)
+Use the exact values:
+- `CDP_API_KEY_ID` = the `id` field from API key JSON
+- `CDP_API_KEY_SECRET` = the `privateKey` field from API key JSON (base64 string as-is)
+- `CDP_WALLET_SECRET` = the wallet secret you created in step 2B
 - `CDP_NETWORK_ID` = `base-sepolia` for testnet
 
 **For local development (`.env.local`):**
 
 ```bash
-CDP_API_KEY_NAME=165e6f4e-50f6-4e3e-922b-ad2846fc1140
-CDP_PRIVATE_KEY=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
+CDP_API_KEY_ID=165e6f4e-50f6-4e3e-922b-ad2846fc1140
+CDP_API_KEY_SECRET=HUwVyxs1zUXWF9egcwNfTZ6YMEtOE2FTZ1W/jeQ+L63AFQBu9/dbofGfmS4Ov7Tw41aGJznHSIxtgsjor5USag==
+CDP_WALLET_SECRET=your-wallet-secret-from-cdp-portal
 CDP_NETWORK_ID=base-sepolia
 ```
 
 **Important:** 
-- Keep your private key secure and never commit it to version control
-- The privateKey is a base64-encoded string - use it exactly as provided in the CDP JSON file
-- No PEM conversion needed - the SDK handles the format internally
+- All three secrets (API Key ID, API Key Secret, and Wallet Secret) are required
+- Keep all secrets secure and never commit them to version control
+- The API Key Secret is base64-encoded - use it exactly as provided
+- The Wallet Secret must be generated from the CDP Portal - it cannot be auto-generated
 
 ### 4. Install Dependencies
 
@@ -121,9 +134,9 @@ By default, accounts are created on **Base Sepolia** (testnet). To use mainnet:
 ## Troubleshooting
 
 ### "CDP API credentials not configured"
-- Check that `CDP_API_KEY_NAME` and `CDP_PRIVATE_KEY` are set in the Vars section
-- Verify you copied the exact values from the CDP JSON file
-- Make sure you're using the `id` field for CDP_API_KEY_NAME, not "API Key Name"
+- Check that `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, and `CDP_WALLET_SECRET` are set in the Vars section
+- Verify you copied the exact values from the CDP JSON file and Wallet Secret
+- Make sure you're using the `id` field for CDP_API_KEY_ID, not "API Key Name"
 
 ### "Database error creating new user"
 - Ensure the `wallets` table exists (run migration 004)
@@ -139,7 +152,7 @@ By default, accounts are created on **Base Sepolia** (testnet). To use mainnet:
 - Check that your Node.js version is compatible (Node 18+)
 
 ### 401 Authentication Errors
-- Verify the `privateKey` value is exactly as provided in the CDP JSON (base64 string)
+- Verify the `CDP_API_KEY_SECRET` value is exactly as provided in the CDP JSON (base64 string)
 - Do not modify or convert the private key - use it as-is
 - Ensure your CDP API key is active and not expired
 
