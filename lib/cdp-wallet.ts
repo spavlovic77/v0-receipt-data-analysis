@@ -10,6 +10,16 @@ function getCdpClient(): CdpClient {
   const apiKeySecret = process.env.CDP_API_KEY_SECRET
   const walletSecret = process.env.CDP_WALLET_SECRET
 
+  console.log("[v0] CDP Credentials Check:", {
+    hasApiKeyId: !!apiKeyId,
+    hasApiKeySecret: !!apiKeySecret,
+    hasWalletSecret: !!walletSecret,
+    apiKeyIdLength: apiKeyId?.length,
+    apiKeySecretLength: apiKeySecret?.length,
+    walletSecretLength: walletSecret?.length,
+    apiKeyIdPrefix: apiKeyId?.substring(0, 8),
+  })
+
   if (!apiKeyId || !apiKeySecret || !walletSecret) {
     throw new Error(
       "CDP credentials not configured. Please set CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET environment variables.",
