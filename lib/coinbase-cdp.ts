@@ -125,20 +125,19 @@ async function generateCDPToken(apiKey: string, privateKey: string): Promise<str
   // Import JWT library dynamically
   const jwt = await import("jsonwebtoken")
 
-  // The private key should be in PEM format with proper newlines
-  // If stored as a single line with \n, we need to replace \\n with actual newlines
   let formattedKey = privateKey
 
-  // Check if key contains escaped newlines and replace them
-  if (privateKey.includes("\\n")) {
-    formattedKey = privateKey.replace(/\\n/g, "\n")
+  // Check if the key is in base64 format (no BEGIN/END markers)
+  if (!privateKey.includes("BEGIN") && !privateKey.includes("END")) {
+    console.log("[v0] Converting base64 private key to PEM format")
+    // The CDP provides keys as base64 encoded EC private keys
+    // We need to wrap them in PEM format for JWT signing
+    formattedKey = `-----BEGIN EC PRIVATE KEY-----\n${privateKey}\n-----END EC PRIVATE KEY-----`
   }
 
-  // Validate PEM format
-  if (!formattedKey.includes("BEGIN") || !formattedKey.includes("END")) {
-    console.error("[v0] CDP private key must be in PEM format")
-    console.error("[v0] Expected format: -----BEGIN EC PRIVATE KEY-----\\n...\\n-----END EC PRIVATE KEY-----")
-    throw new Error("Invalid CDP private key format. Please use PEM formatted ES256 ECDSA key.")
+  // If key contains escaped newlines, replace them with actual newlines
+  if (formattedKey.includes("\\n")) {
+    formattedKey = formattedKey.replace(/\\n/g, "\n")
   }
 
   const payload = {
@@ -152,7 +151,8 @@ async function generateCDPToken(apiKey: string, privateKey: string): Promise<str
     return jwt.default.sign(payload, formattedKey, { algorithm: "ES256" })
   } catch (error) {
     console.error("[v0] JWT signing failed:", error)
-    throw new Error("Failed to sign JWT. Ensure your CDP private key is a valid ES256 ECDSA key in PEM format.")
+    console.error("[v0] Please ensure your CDP_PRIVATE_KEY is the base64 privateKey from the CDP JSON file")
+    throw new Error("Failed to sign JWT with CDP private key")
   }
 }
 
