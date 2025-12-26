@@ -26,8 +26,7 @@ function getCoinbaseClient(): Coinbase {
 
   console.log("[v0] Initializing Coinbase CDP SDK")
 
-  // Initialize with credentials
-  coinbaseInstance = Coinbase.configureFromJson({
+  coinbaseInstance = new Coinbase({
     apiKeyName,
     privateKey,
   })
