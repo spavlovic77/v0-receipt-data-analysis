@@ -6,8 +6,8 @@ import { CdpClient } from "@coinbase/cdp-sdk"
  * Initialize CDP Client with environment variables
  */
 function getCdpClient(): CdpClient {
-  const apiKeyId = process.env.CDP_API_KEY_ID
-  const apiKeySecret = process.env.CDP_API_KEY_SECRET
+  const apiKeyId = process.env.CDP_API_KEY_ID || process.env.CDP_API_KEY_NAME
+  const apiKeySecret = process.env.CDP_API_KEY_SECRET || process.env.CDP_PRIVATE_KEY
   const walletSecret = process.env.CDP_WALLET_SECRET
 
   console.log("[v0] CDP Credentials Check:", {
@@ -17,12 +17,18 @@ function getCdpClient(): CdpClient {
     apiKeyIdLength: apiKeyId?.length,
     apiKeySecretLength: apiKeySecret?.length,
     walletSecretLength: walletSecret?.length,
-    apiKeyIdPrefix: apiKeyId?.substring(0, 8),
+    apiKeyIdValue: apiKeyId, // Show full value for debugging
+    walletSecretValue: walletSecret?.substring(0, 20) + "...", // Show prefix only
   })
 
   if (!apiKeyId || !apiKeySecret || !walletSecret) {
+    const missing = []
+    if (!apiKeyId) missing.push("CDP_API_KEY_ID or CDP_API_KEY_NAME")
+    if (!apiKeySecret) missing.push("CDP_API_KEY_SECRET or CDP_PRIVATE_KEY")
+    if (!walletSecret) missing.push("CDP_WALLET_SECRET")
+
     throw new Error(
-      "CDP credentials not configured. Please set CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET environment variables.",
+      `CDP credentials not configured. Missing: ${missing.join(", ")}. Please set these environment variables.`,
     )
   }
 
