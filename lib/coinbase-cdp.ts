@@ -17,11 +17,14 @@ function getCDPClient(): CdpClient {
     return cdpClientInstance
   }
 
-  const apiKeyId = process.env.CDP_API_KEY_NAME // ID from CDP JSON
-  const apiKeySecret = process.env.CDP_PRIVATE_KEY // privateKey from CDP JSON (base64 format)
+  const apiKeyId = process.env.CDP_API_KEY_ID // Corrected environment variable name
+  const apiKeySecret = process.env.CDP_API_KEY_SECRET // Corrected environment variable name
+  const walletSecret = process.env.CDP_WALLET_SECRET // New environment variable for wallet secret
 
-  if (!apiKeyId || !apiKeySecret) {
-    throw new Error("CDP API credentials not configured. Please set CDP_API_KEY_NAME and CDP_PRIVATE_KEY")
+  if (!apiKeyId || !apiKeySecret || !walletSecret) {
+    throw new Error(
+      "CDP API credentials not configured. Please set CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET",
+    )
   }
 
   console.log("[v0] Initializing CDP SDK")
@@ -31,6 +34,7 @@ function getCDPClient(): CdpClient {
     cdpClientInstance = new CdpClient({
       apiKeyId: apiKeyId,
       apiKeySecret: apiKeySecret,
+      walletSecret: walletSecret, // Added walletSecret to the initialization
     })
 
     console.log("[v0] CDP SDK initialized successfully")
