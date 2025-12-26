@@ -25,11 +25,20 @@ function getCoinbaseClient(): Coinbase {
   }
 
   console.log("[v0] Initializing Coinbase CDP SDK")
+  console.log("[v0] API Key Name length:", apiKeyName?.length)
+  console.log("[v0] Private Key length:", privateKey?.length)
+  console.log("[v0] API Key Name (first 10 chars):", apiKeyName?.substring(0, 10))
 
-  coinbaseInstance = new Coinbase({
-    apiKeyName,
-    privateKey,
-  })
+  try {
+    coinbaseInstance = new Coinbase({
+      apiKeyName,
+      privateKey,
+    })
+    console.log("[v0] Coinbase SDK initialized successfully")
+  } catch (error) {
+    console.error("[v0] Failed to initialize Coinbase SDK:", error)
+    throw error
+  }
 
   return coinbaseInstance
 }
@@ -49,6 +58,8 @@ export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPWa
 
     const coinbase = getCoinbaseClient()
 
+    console.log("[v0] Coinbase client obtained, creating wallet...")
+
     // Create a new wallet
     const wallet = await Wallet.create({ networkId })
 
@@ -60,8 +71,14 @@ export async function createCDPWallet(networkId = "base-sepolia"): Promise<CDPWa
       networkId: networkId,
       defaultAddress: wallet.getDefaultAddress()?.getId() || "",
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] Error creating CDP wallet:", error)
+    console.error("[v0] Error details:", {
+      message: error?.message,
+      httpCode: error?.httpCode,
+      apiCode: error?.apiCode,
+      apiMessage: error?.apiMessage,
+    })
     return null
   }
 }
