@@ -123,36 +123,56 @@ export async function signMessageWithCDPWallet(
  */
 async function generateCDPToken(apiKey: string, privateKey: string): Promise<string> {
   // Import JWT library dynamically
+  const crypto = await import("crypto")
   const jwt = await import("jsonwebtoken")
 
-  let formattedKey = privateKey
-
-  // Check if the key is in base64 format (no BEGIN/END markers)
-  if (!privateKey.includes("BEGIN") && !privateKey.includes("END")) {
-    console.log("[v0] Converting base64 private key to PEM format")
-    // The CDP provides keys as base64 encoded EC private keys
-    // We need to wrap them in PEM format for JWT signing
-    formattedKey = `-----BEGIN EC PRIVATE KEY-----\n${privateKey}\n-----END EC PRIVATE KEY-----`
-  }
-
-  // If key contains escaped newlines, replace them with actual newlines
-  if (formattedKey.includes("\\n")) {
-    formattedKey = formattedKey.replace(/\\n/g, "\n")
-  }
-
-  const payload = {
-    sub: apiKey,
-    iss: "coinbase-cloud",
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 120, // 2 minutes
-  }
-
   try {
-    return jwt.default.sign(payload, formattedKey, { algorithm: "ES256" })
+    let keyObject: crypto.KeyObject
+
+    // Check if the key is in base64 format (no BEGIN/END markers)
+    if (!privateKey.includes("BEGIN") && !privateKey.includes("END")) {
+      console.log("[v0] Processing base64 CDP private key")
+
+      // Decode base64 to buffer
+      const keyBuffer = Buffer.from(privateKey, "base64")
+
+      // For ES256, create a KeyObject from the raw key bytes
+      // The CDP key is an EC private key for secp256r1 (P-256) curve
+      keyObject = crypto.createPrivateKey({
+        key: keyBuffer,
+        format: "der",
+        type: "sec1", // SEC1 format for EC keys
+      })
+    } else {
+      // Key is already in PEM format
+      let formattedKey = privateKey
+
+      // If key contains escaped newlines, replace them with actual newlines
+      if (formattedKey.includes("\\n")) {
+        formattedKey = formattedKey.replace(/\\n/g, "\n")
+      }
+
+      keyObject = crypto.createPrivateKey(formattedKey)
+    }
+
+    const payload = {
+      sub: apiKey,
+      iss: "coinbase-cloud",
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 120, // 2 minutes
+    }
+
+    // Export to PEM format for JWT library
+    const pemKey = keyObject.export({ type: "sec1", format: "pem" })
+
+    return jwt.default.sign(payload, pemKey, { algorithm: "ES256" })
   } catch (error) {
     console.error("[v0] JWT signing failed:", error)
-    console.error("[v0] Please ensure your CDP_PRIVATE_KEY is the base64 privateKey from the CDP JSON file")
-    throw new Error("Failed to sign JWT with CDP private key")
+    console.error("[v0] Key length:", privateKey.length)
+    console.error("[v0] First 20 chars:", privateKey.substring(0, 20))
+    throw new Error(
+      "Failed to sign JWT with CDP private key. Please ensure the key is the correct base64 privateKey from CDP JSON.",
+    )
   }
 }
 
