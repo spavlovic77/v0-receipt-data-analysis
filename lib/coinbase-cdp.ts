@@ -30,10 +30,8 @@ function getCoinbaseClient(): Coinbase {
   console.log("[v0] API Key Name (first 10 chars):", apiKeyName?.substring(0, 10))
 
   try {
-    coinbaseInstance = new Coinbase({
-      apiKeyName,
-      privateKey,
-    })
+    Coinbase.configure({ apiKeyName, privateKey })
+    coinbaseInstance = new Coinbase()
     console.log("[v0] Coinbase SDK initialized successfully")
   } catch (error) {
     console.error("[v0] Failed to initialize Coinbase SDK:", error)
