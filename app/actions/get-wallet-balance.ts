@@ -5,6 +5,7 @@ import { getWalletBalance } from "@/lib/cdp-wallet"
 
 export async function getUserWalletBalance() {
   try {
+    console.log("[v0] getUserWalletBalance: Starting...")
     const supabase = await createClient()
 
     const {
@@ -12,9 +13,13 @@ export async function getUserWalletBalance() {
       error: authError,
     } = await supabase.auth.getUser()
 
+    console.log("[v0] getUserWalletBalance: User check", { hasUser: !!user, authError })
+
     if (authError || !user) {
       return { success: false, error: "User not authenticated" }
     }
+
+    console.log("[v0] getUserWalletBalance: Fetching wallet for user:", user.id)
 
     const { data: wallet, error: walletError } = await supabase
       .from("wallets")
@@ -22,11 +27,19 @@ export async function getUserWalletBalance() {
       .eq("user_id", user.id)
       .maybeSingle()
 
+    console.log("[v0] getUserWalletBalance: Wallet query result", {
+      hasWallet: !!wallet,
+      walletError,
+      wallet: wallet ? { id: wallet.id, address: wallet.default_address } : null,
+    })
+
     if (walletError || !wallet) {
-      return { success: false, error: "Wallet not found" }
+      return { success: false, error: "Wallet not found. Try scanning a receipt first." }
     }
 
+    console.log("[v0] getUserWalletBalance: Getting balance for wallet:", wallet.wallet_id)
     const balance = await getWalletBalance(wallet.wallet_id)
+    console.log("[v0] getUserWalletBalance: Balance retrieved:", balance)
 
     return {
       success: true,
