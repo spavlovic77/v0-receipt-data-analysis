@@ -135,6 +135,46 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
               <p className="text-sm text-muted-foreground">Toto môže trvať niekoľko sekúnd</p>
             </div>
           </div>
+        ) : !showEmailLogin ? (
+          <div className="space-y-4">
+            <SocialLoginButtons
+              onLoading={setIsLoading}
+              onError={setError}
+              onWalletCreating={setIsCreatingWallet}
+              onSuccess={() => {
+                onOpenChange(false)
+                if (onSuccess) onSuccess()
+              }}
+            />
+
+            {error && (
+              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
+            )}
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Alebo</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full bg-transparent"
+              onClick={() => setShowEmailLogin(true)}
+              disabled={isLoading}
+            >
+              Pokračovať s emailom
+            </Button>
+
+            <Button type="button" variant="ghost" className="w-full" onClick={handleDemoLogin} disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Demo prihlásenie
+            </Button>
+          </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
@@ -151,20 +191,23 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
                 required
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <div className="flex items-center justify-between">
-              <Button type="submit" disabled={isLoading}>
+            <div className="flex flex-col gap-2">
+              <Button type="submit" disabled={isLoading} className="w-full">
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {mode === "signup" ? "Registrovať sa" : "Prihlásiť"}
               </Button>
-              <Button variant="outline" onClick={() => setMode(mode === "signup" ? "signin" : "signup")}>
-                {mode === "signup" ? "Mám už účet" : "Chcel/a som si vytvoriť účet"}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+                className="w-full"
+              >
+                {mode === "signup" ? "Mám už účet" : "Vytvoriť nový účet"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setShowEmailLogin(false)} className="w-full">
+                ← Späť na sociálne siete
               </Button>
             </div>
-            <SocialLoginButtons />
-            <Button variant="outline" onClick={handleDemoLogin}>
-              Prihlásiť sa ako demo užívateľ
-            </Button>
           </form>
         )}
       </DialogContent>
