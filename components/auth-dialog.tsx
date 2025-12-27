@@ -1,15 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createUserWallet } from "@/app/actions/create-user-wallet"
+import { ensureUserWallet } from "@/app/actions/wallet-actions"
+import { Loader2 } from "lucide-react"
 
 interface AuthDialogProps {
   open: boolean
@@ -21,8 +20,8 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,6 +30,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
     setError(null)
 
     try {
+      console.log("[v0] Logging in user...")
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -38,17 +38,24 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
       if (error) throw error
 
       if (data.user) {
-        console.log("[v0] Creating wallet for user after login")
-        await createUserWallet(data.user.id)
+        console.log("[v0] User logged in, creating wallet...")
+        setIsCreatingWallet(true)
+        const walletResult = await ensureUserWallet()
+
+        if (!walletResult.success) {
+          console.error("[v0] Failed to create wallet:", walletResult.error)
+          throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+        }
+
+        console.log("[v0] Wallet created/found:", walletResult.wallet?.address)
       }
 
       onSuccess()
-      onOpenChange(false)
-      router.refresh()
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Prihlásenie zlyhalo")
     } finally {
       setIsLoading(false)
+      setIsCreatingWallet(false)
     }
   }
 
@@ -62,32 +69,34 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
       const DEMO_EMAIL = "demo@example.com"
       const DEMO_PASSWORD = "demo1234"
 
-      console.log("[v0] Attempting demo login with:", DEMO_EMAIL)
-
+      console.log("[v0] Logging in demo user...")
       const { data, error } = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
       })
 
-      if (error) {
-        console.error("[v0] Demo login error:", error)
-        throw error
-      }
+      if (error) throw error
 
       if (data.user) {
-        console.log("[v0] Creating wallet for demo user")
-        await createUserWallet(data.user.id)
+        console.log("[v0] Demo user logged in, creating wallet...")
+        setIsCreatingWallet(true)
+        const walletResult = await ensureUserWallet()
+
+        if (!walletResult.success) {
+          console.error("[v0] Failed to create wallet:", walletResult.error)
+          throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+        }
+
+        console.log("[v0] Demo wallet created/found:", walletResult.wallet?.address)
       }
 
-      console.log("[v0] Demo login successful")
       onSuccess()
-      onOpenChange(false)
-      router.refresh()
     } catch (error: unknown) {
       console.error("[v0] Demo login failed:", error)
       setError(error instanceof Error ? error.message : "Demo prihlásenie zlyhalo")
     } finally {
       setIsLoading(false)
+      setIsCreatingWallet(false)
     }
   }
 
@@ -96,54 +105,72 @@ export function AuthDialog({ open, onOpenChange, onSuccess }: AuthDialogProps) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Prihlásenie</DialogTitle>
-          <DialogDescription>Prihláste sa pre uloženie naskenovaných dokladov</DialogDescription>
+          <DialogDescription>Prihláste sa pre prístup k vašej Coinbase peňaženke</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="vas@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Heslo</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Prihlasovanie..." : "Prihlásiť sa"}
-          </Button>
-        </form>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+        {isCreatingWallet && (
+          <div className="flex flex-col items-center justify-center py-8 gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-medium">Vytváram vašu peňaženku...</p>
+              <p className="text-sm text-muted-foreground">Toto môže trvať niekoľko sekúnd</p>
+            </div>
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">alebo</span>
-          </div>
-        </div>
+        )}
+        {/* </CHANGE> */}
 
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full bg-transparent"
-          onClick={handleDemoLogin}
-          disabled={isLoading}
-        >
-          Prihlásiť sa ako Demo užívateľ
-        </Button>
+        {!isCreatingWallet && (
+          <>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="vas@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Heslo</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+              {error && <p className="text-sm text-red-500">{error}</p>}
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Prihlasovanie..." : "Prihlásiť sa"}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">alebo</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full bg-transparent"
+              onClick={handleDemoLogin}
+              disabled={isLoading}
+            >
+              Prihlásiť sa ako Demo užívateľ
+            </Button>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
