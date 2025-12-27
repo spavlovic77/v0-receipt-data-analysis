@@ -30,15 +30,18 @@ export async function getUserWalletBalance() {
     console.log("[v0] getUserWalletBalance: Wallet query result", {
       hasWallet: !!wallet,
       walletError,
-      wallet: wallet ? { id: wallet.id, address: wallet.default_address } : null,
+      wallet: wallet ? { id: wallet.id, address: wallet.default_address, accountId: wallet.wallet_id } : null,
     })
 
     if (walletError || !wallet) {
       return { success: false, error: "Wallet not found. Try scanning a receipt first." }
     }
 
-    console.log("[v0] getUserWalletBalance: Getting balance for wallet:", wallet.wallet_id)
-    const balance = await getWalletBalance(wallet.wallet_id)
+    console.log("[v0] getUserWalletBalance: Getting balance for wallet:", {
+      accountId: wallet.wallet_id,
+      networkId: wallet.network_id,
+    })
+    const balance = await getWalletBalance(wallet.wallet_id, wallet.network_id)
     console.log("[v0] getUserWalletBalance: Balance retrieved:", balance)
 
     return {

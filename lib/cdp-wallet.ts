@@ -101,18 +101,33 @@ export async function signMessageWithWallet(accountId: string, message: string):
 /**
  * Get wallet balance
  * @param accountId - The CDP account ID
+ * @param networkId - The network ID (e.g., 'base-sepolia')
  * @returns Balance information
  */
-export async function getWalletBalance(accountId: string) {
+export async function getWalletBalance(accountId: string, networkId = "base-sepolia") {
   try {
+    console.log("[v0] Getting wallet balance for:", { accountId, networkId })
+
     const cdp = getCdpClient()
-    const account = await cdp.evm.getAccount(accountId)
+
+    const account = await cdp.evm.getAccount({
+      id: accountId,
+      networkId: networkId,
+    })
+
+    console.log("[v0] Account retrieved:", { address: account.address })
 
     const balance = await account.getBalance()
+
+    console.log("[v0] Balance retrieved:", balance)
 
     return balance
   } catch (error) {
     console.error("[v0] Error getting wallet balance:", error)
+    console.error("[v0] Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     throw new Error(`Failed to get wallet balance: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
