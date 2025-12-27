@@ -4,9 +4,11 @@ import { useState } from "react"
 import { LogIn, Sparkles } from "lucide-react"
 import { AuthDialog } from "./auth-dialog"
 import { Button } from "./ui/button"
+import { useRouter } from "next/navigation"
 
 export function LoginPrompt() {
   const [showAuthDialog, setShowAuthDialog] = useState(false)
+  const router = useRouter()
 
   return (
     <>
@@ -42,9 +44,10 @@ export function LoginPrompt() {
         onOpenChange={setShowAuthDialog}
         onSuccess={() => {
           setShowAuthDialog(false)
-          window.location.reload() // Reload to show wallet
+          router.refresh()
         }}
       />
+      {/* </CHANGE> */}
     </>
   )
 }
