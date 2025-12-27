@@ -100,28 +100,48 @@ export async function signMessageWithWallet(accountId: string, message: string):
 
 /**
  * Get wallet balance
- * @param accountId - The CDP account ID
+ * @param address - The wallet address
  * @param networkId - The network ID (e.g., 'base-sepolia')
  * @returns Balance information
  */
-export async function getWalletBalance(accountId: string, networkId = "base-sepolia") {
+export async function getWalletBalance(address: string, networkId = "base-sepolia") {
   try {
-    console.log("[v0] Getting wallet balance for:", { accountId, networkId })
+    console.log("[v0] Getting wallet balance for:", { address, networkId })
 
     const cdp = getCdpClient()
 
-    const account = await cdp.evm.getAccount({
-      id: accountId,
-      networkId: networkId,
+    const result = await cdp.evm.listTokenBalances({
+      address: address,
+      network: networkId,
     })
 
-    console.log("[v0] Account retrieved:", { address: account.address })
+    console.log("[v0] Token balances retrieved:", result)
 
-    const balance = await account.getBalance()
+    // Find native ETH balance (represented by 0xEeeee... address)
+    const nativeBalance = result.balances.find(
+      (balance) =>
+        balance.token.contractAddress?.toLowerCase() === "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" ||
+        balance.token.symbol === "ETH",
+    )
 
-    console.log("[v0] Balance retrieved:", balance)
+    if (nativeBalance) {
+      // Convert from smallest unit to ETH
+      const readableAmount = Number(nativeBalance.amount.amount) / Math.pow(10, nativeBalance.amount.decimals)
+      console.log("[v0] Native balance (ETH):", readableAmount)
 
-    return balance
+      return {
+        amount: readableAmount.toString(),
+        symbol: nativeBalance.token.symbol,
+        decimals: nativeBalance.amount.decimals,
+      }
+    }
+
+    // If no native balance found, return 0
+    return {
+      amount: "0",
+      symbol: "ETH",
+      decimals: 18,
+    }
   } catch (error) {
     console.error("[v0] Error getting wallet balance:", error)
     console.error("[v0] Error details:", {
