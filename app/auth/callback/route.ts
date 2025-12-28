@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { ensureUserWallet } from "@/app/actions/wallet-actions"
-import { completeUserProfile } from "@/app/actions/complete-profile"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -12,7 +11,6 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      await completeUserProfile()
       await ensureUserWallet()
     }
   }
