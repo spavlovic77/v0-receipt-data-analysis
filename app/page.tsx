@@ -1,6 +1,7 @@
 import { ReceiptAnalyzer } from "@/components/receipt-analyzer"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
+import { CreateWalletButton } from "@/components/create-wallet-button"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
 import { createClient } from "@/lib/supabase/server"
 
@@ -10,12 +11,12 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  console.log("[v0] Home page - User logged in:", !!user)
+  let hasWallet = false
   if (user) {
-    console.log("[v0] User email:", user.email)
-    console.log("[v0] User ID:", user.id)
+    const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).single()
+
+    hasWallet = !!wallet
   }
-  // </CHANGE>
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
@@ -43,13 +44,8 @@ export default async function Home() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
-        {user && (
-          <div className="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <p className="text-sm text-green-600 dark:text-green-400 font-medium">✓ Logged in as: {user.email}</p>
-          </div>
-        )}
-        {/* </CHANGE> */}
-        {user && <WalletBalanceDisplay />}
+        {user && !hasWallet && <CreateWalletButton />}
+        {user && hasWallet && <WalletBalanceDisplay />}
       </div>
 
       <div className="relative">

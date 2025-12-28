@@ -2,9 +2,11 @@
 create table if not exists public.user_profiles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
-  name text not null,
-  surname text not null,
-  birth_number text not null unique, -- Slovak "rodné číslo"
+  -- Updated fields to match new profile structure
+  full_name text not null,
+  phone text,
+  birth_date date,
+  -- </CHANGE>
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   
@@ -34,7 +36,6 @@ create policy "user_profiles_delete_own"
 
 -- Create index for faster lookups
 create index if not exists idx_user_profiles_user_id on public.user_profiles(user_id);
-create index if not exists idx_user_profiles_birth_number on public.user_profiles(birth_number);
 
 -- Add trigger to update updated_at timestamp
 create or replace function public.update_updated_at_column()

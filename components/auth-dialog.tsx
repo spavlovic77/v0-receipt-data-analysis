@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ensureUserWallet } from "@/app/actions/wallet-actions"
+import { createUserProfile } from "@/app/actions/create-user-profile"
 import { Loader2 } from "lucide-react"
 import { SocialLoginButtons } from "./social-login-buttons"
 
@@ -22,7 +22,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isCreatingWallet, setIsCreatingWallet] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showEmailLogin, setShowEmailLogin] = useState(false)
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode)
@@ -45,29 +44,21 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         if (error) throw error
 
         if (data.user) {
-          setIsCreatingWallet(true)
-          const walletResult = await ensureUserWallet()
-
-          if (!walletResult.success) {
-            throw new Error(`Registrácia úspešná, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+          console.log("[v0] Creating user profile...")
+          const profileResult = await createUserProfile()
+          if (!profileResult.success) {
+            console.error("[v0] Profile creation failed:", profileResult.error)
           }
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
         if (error) throw error
-
-        if (data.user) {
-          setIsCreatingWallet(true)
-          const walletResult = await ensureUserWallet()
-
-          if (!walletResult.success) {
-            throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
-          }
-        }
       }
+
+      onOpenChange(false)
       if (onSuccess) onSuccess()
     } catch (error: unknown) {
       setError(
@@ -75,7 +66,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
       )
     } finally {
       setIsLoading(false)
-      setIsCreatingWallet(false)
     }
   }
 
@@ -88,28 +78,19 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
       const DEMO_EMAIL = "demo@example.com"
       const DEMO_PASSWORD = "demo1234"
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: DEMO_EMAIL,
         password: DEMO_PASSWORD,
       })
 
       if (error) throw error
 
-      if (data.user) {
-        setIsCreatingWallet(true)
-        const walletResult = await ensureUserWallet()
-
-        if (!walletResult.success) {
-          throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
-        }
-      }
-
+      onOpenChange(false)
       if (onSuccess) onSuccess()
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Demo prihlásenie zlyhalo")
     } finally {
       setIsLoading(false)
-      setIsCreatingWallet(false)
     }
   }
 
@@ -122,25 +103,16 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
           </DialogTitle>
           <DialogDescription>
             {mode === "signup"
-              ? "Zaregistrujte sa a získajte svoju krypto peňaženku"
-              : "Prihláste sa pre prístup k vašej peňaženke"}
+              ? "Zaregistrujte sa a získajte prístup k aplikácii"
+              : "Prihláste sa pre prístup k vašim dátam"}
           </DialogDescription>
         </DialogHeader>
 
-        {isCreatingWallet ? (
-          <div className="flex flex-col items-center justify-center py-8 gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <div className="text-center">
-              <p className="font-medium">Vytváram vašu peňaženku...</p>
-              <p className="text-sm text-muted-foreground">Toto môže trvať niekoľko sekúnd</p>
-            </div>
-          </div>
-        ) : !showEmailLogin ? (
+        {!showEmailLogin ? (
           <div className="space-y-4">
             <SocialLoginButtons
               onLoading={setIsLoading}
               onError={setError}
-              onWalletCreating={setIsCreatingWallet}
               onSuccess={() => {
                 onOpenChange(false)
                 if (onSuccess) onSuccess()

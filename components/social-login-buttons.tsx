@@ -6,11 +6,10 @@ import { createClient } from "@/lib/supabase/client"
 interface SocialLoginButtonsProps {
   onLoading: (loading: boolean) => void
   onError: (error: string | null) => void
-  onWalletCreating: (creating: boolean) => void
   onSuccess: () => void
 }
 
-export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuccess }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({ onLoading, onError, onSuccess }: SocialLoginButtonsProps) {
   const handleSocialLogin = async (provider: "google") => {
     onLoading(true)
     onError(null)
@@ -39,8 +38,6 @@ export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuc
         }
         throw error
       }
-
-      // OAuth redirect happens automatically, wallet creation will happen in callback
     } catch (error: unknown) {
       console.error("[v0] Social login error:", error)
       onError(error instanceof Error ? error.message : "Prihlásenie zlyhalo")
