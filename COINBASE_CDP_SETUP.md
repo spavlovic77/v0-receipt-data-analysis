@@ -140,6 +140,7 @@ By default, accounts are created on **Base Sepolia** (testnet). To use mainnet:
 
 ### "Database error creating new user"
 - Ensure the `wallets` table exists (run migration 004)
+- Check that user has a profile in `user_profiles` table
 
 ### "Failed to sign message with wallet"
 - Verify CDP API key has wallet permissions

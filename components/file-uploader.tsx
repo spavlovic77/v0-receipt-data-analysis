@@ -146,13 +146,6 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
       setLoadingReceipt(true)
 
       try {
-        if (!isAuthenticated) {
-          console.log("[v0] User not authenticated, showing auth dialog")
-          setShowAuthDialog(true)
-          setLoadingReceipt(false)
-          return
-        }
-
         const receipts = await fetchReceiptById(receiptId.trim())
         console.log("[v0] Receipts from QR scan:", receipts)
 
@@ -163,30 +156,6 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         const receipt = receipts[0]
         const dic = receipt.cashRegisterCode || "unknown"
 
-        console.log("[v0] User authenticated, saving receipt")
-        const saveResult = await saveScannedReceipt(receiptId, dic, receipt)
-        console.log("[v0] Save result:", saveResult)
-
-        if (saveResult.error) {
-          if (saveResult.error === "DUPLICATE") {
-            console.log("[v0] Duplicate receipt detected")
-            setDuplicateReceiptInfo({
-              receiptId,
-              scannedAt: saveResult.scannedAt,
-            })
-            setShowDuplicateDialog(true)
-            setLoadingReceipt(false)
-            return
-          } else {
-            console.error("[v0] Error saving receipt:", saveResult.error)
-            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
-            setLoadingReceipt(false)
-            return
-          }
-        }
-
-        console.log("[v0] Receipt saved successfully")
-
         // Convert to string format for onUpload
         const dataString = JSON.stringify({
           source: "api",
@@ -194,6 +163,47 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         })
 
         const fileName = `Doklad ${receiptId.substring(0, 15)}...`
+
+        if (!isAuthenticated) {
+          console.log("[v0] User not authenticated, storing pending receipt and showing auth dialog")
+          // Store receipt data and show auth dialog
+          setPendingReceipt({
+            receiptId,
+            dic,
+            receipt,
+            dataString,
+            fileName,
+          })
+          setShowAuthDialog(true)
+          setLoadingReceipt(false)
+          return
+        }
+
+        console.log("[v0] User authenticated, saving receipt immediately")
+        const saveResult = await saveScannedReceipt(receiptId, dic, receipt)
+        console.log("[v0] Save result:", saveResult)
+
+        if (saveResult.error) {
+          if (saveResult.error === "DUPLICATE") {
+            console.log("[v0] Duplicate receipt detected, showing modal")
+            setDuplicateReceiptInfo({
+              receiptId,
+              scannedAt: saveResult.scannedAt,
+            })
+            setShowDuplicateDialog(true)
+            setLoadingReceipt(false)
+            return // Stop here, don't call onUpload
+          } else {
+            console.error("[v0] Error saving receipt:", saveResult.error)
+            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+            setLoadingReceipt(false)
+            return // Stop here, don't call onUpload
+          }
+        }
+
+        console.log("[v0] Receipt saved successfully with signature:", saveResult.signedMessage)
+
+        // Only call onUpload if everything succeeded
         setFileName(fileName)
         onUpload(dataString)
       } catch (error) {
@@ -206,8 +216,64 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
     [onUpload, isAuthenticated],
   )
 
-  const handleAuthSuccess = () => {
-    window.location.reload()
+  const handleAuthSuccess = async () => {
+    setIsProcessingAfterLogin(true)
+
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    setIsAuthenticated(!!user)
+    setUserEmail(user?.email || null)
+
+    console.log("[v0] Auth successful, checking for pending receipt")
+
+    if (pendingReceipt && user) {
+      console.log("[v0] Saving pending receipt after authentication")
+      try {
+        const saveResult = await saveScannedReceipt(
+          pendingReceipt.receiptId,
+          pendingReceipt.dic,
+          pendingReceipt.receipt,
+        )
+        console.log("[v0] Pending receipt save result:", saveResult)
+
+        if (saveResult.error) {
+          if (saveResult.error === "DUPLICATE") {
+            console.log("[v0] Duplicate receipt detected after login")
+            setDuplicateReceiptInfo({
+              receiptId: pendingReceipt.receiptId,
+              scannedAt: saveResult.scannedAt,
+            })
+            setShowDuplicateDialog(true)
+            setPendingReceipt(null)
+            setIsProcessingAfterLogin(false)
+            return
+          } else {
+            console.error("[v0] Error saving pending receipt:", saveResult.error)
+            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+            setPendingReceipt(null)
+            setIsProcessingAfterLogin(false)
+            return
+          }
+        }
+
+        console.log("[v0] Pending receipt saved successfully with signature:", saveResult.signedMessage)
+
+        // Only upload if everything succeeded
+        setFileName(pendingReceipt.fileName)
+        onUpload(pendingReceipt.dataString)
+
+        // Clear pending receipt
+        setPendingReceipt(null)
+      } catch (error) {
+        console.error("[v0] Error processing pending receipt:", error)
+        alert("Nepodarilo sa spracovať doklad po prihlásení")
+        setIsProcessingAfterLogin(false)
+      }
+    } else {
+      setIsProcessingAfterLogin(false)
+    }
   }
 
   const handleLogout = async () => {

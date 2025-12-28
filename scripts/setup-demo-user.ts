@@ -57,6 +57,18 @@ export async function setupDemoUser() {
       console.error("[v0] Error creating public.users record:", userError)
     }
 
+    // Ensure user profile exists
+    const { error: profileError } = await supabase.from("user_profiles").upsert({
+      user_id: authData.user.id,
+      name: "Adam",
+      surname: "Smith",
+      birth_number: "7711097383",
+    })
+
+    if (profileError) {
+      console.error("[v0] Error creating user profile:", profileError)
+    }
+
     console.log("[v0] Demo user setup complete!")
     return {
       success: true,
