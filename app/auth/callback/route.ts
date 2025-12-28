@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -17,8 +18,26 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
     }
 
-    if (data?.user) {
-      console.log("[v0] User authenticated:", data.user.email)
+    if (data?.session) {
+      console.log("[v0] User authenticated:", data.user?.email)
+      console.log("[v0] Session token exists:", !!data.session.access_token)
+
+      const cookieStore = await cookies()
+
+      // Set the auth cookies manually to ensure they persist
+      cookieStore.set("sb-access-token", data.session.access_token, {
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      })
+
+      cookieStore.set("sb-refresh-token", data.session.refresh_token, {
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      })
 
       const redirectUrl = new URL(requestUrl.origin)
       redirectUrl.searchParams.set("new_login", "true")

@@ -29,6 +29,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("[v0] Proxy - path:", request.nextUrl.pathname, "- user:", user?.email || "not logged in")
+
   // Redirect to login if accessing protected routes without auth
   if (request.nextUrl.pathname.startsWith("/dashboard") && !user) {
     const url = request.nextUrl.clone()
