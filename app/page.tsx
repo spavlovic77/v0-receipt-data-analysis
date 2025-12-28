@@ -11,11 +11,18 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("[v0] Page render - User logged in:", !!user)
+  if (user) {
+    console.log("[v0] User email:", user.email)
+    console.log("[v0] User ID:", user.id)
+  }
+
   let hasWallet = false
   if (user) {
     const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).single()
 
     hasWallet = !!wallet
+    console.log("[v0] User has wallet:", hasWallet)
   }
 
   return (
@@ -44,6 +51,16 @@ export default async function Home() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
+        {user && (
+          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm">
+            Logged in as: {user.email}
+          </div>
+        )}
+        {!user && (
+          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
+            Not logged in. Click Login to sign in with Google.
+          </div>
+        )}
         {user && !hasWallet && <CreateWalletButton />}
         {user && hasWallet && <WalletBalanceDisplay />}
       </div>
