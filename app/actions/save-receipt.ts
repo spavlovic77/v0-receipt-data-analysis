@@ -33,16 +33,6 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     }
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("name, surname, birth_number")
-    .eq("user_id", user.id)
-    .single()
-
-  if (profileError || !profile) {
-    return { error: "User profile not found. Please complete your profile first." }
-  }
-
   let wallet = await getUserWallet(user.id)
 
   if (!wallet) {
@@ -54,7 +44,7 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     wallet = result.wallet
   }
 
-  const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
+  const message = `${receiptId}:${user.email}:${dic}`
 
   console.log("[v0] Saving receipt:", {
     receiptId,
@@ -68,7 +58,7 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     user_id: user.id,
     receipt_id: receiptId,
     dic: dic,
-    signed_message: message, // Store message without signature
+    signed_message: message,
     receipt_data: receiptData,
   })
 

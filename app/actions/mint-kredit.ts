@@ -28,17 +28,6 @@ export async function mintKreditTokens(receiptId: string) {
       return { success: false, error: "Receipt not found" }
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("name, surname, birth_number")
-      .eq("user_id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return { success: false, error: "User profile not found" }
-    }
-
     // Get user's wallet address
     const { data: wallet, error: walletError } = await supabase
       .from("wallets")
@@ -78,9 +67,9 @@ export async function mintKreditTokens(receiptId: string) {
 
     const signature = await signReceiptForKredit(
       receiptId,
-      profile.name,
-      profile.surname,
-      profile.birth_number,
+      user.email || "unknown",
+      "", // No surname needed
+      "", // No birth number needed
       receipt.dic,
       tokenAmount,
       signerPrivateKey,
@@ -91,9 +80,7 @@ export async function mintKreditTokens(receiptId: string) {
       success: true,
       data: {
         receiptId,
-        name: profile.name,
-        surname: profile.surname,
-        birthNumber: profile.birth_number,
+        email: user.email,
         dic: receipt.dic,
         amount: tokenAmount.toString(),
         signature,

@@ -31,10 +31,6 @@ export async function setupDemoUser() {
       email: "demo@example.com",
       password: "demo1234",
       email_confirm: true,
-      user_metadata: {
-        name: "Adam",
-        surname: "Smith",
-      },
     })
 
     if (authError) {
@@ -60,25 +56,6 @@ export async function setupDemoUser() {
     }
 
     console.log("[v0] Created public.users record")
-
-    const { error: profileError } = await supabase.from("user_profiles").upsert(
-      {
-        user_id: authData.user.id,
-        name: "Adam",
-        surname: "Smith",
-        birth_number: "7711097383",
-      },
-      {
-        onConflict: "user_id",
-      },
-    )
-
-    if (profileError) {
-      console.error("[v0] Error creating user profile:", profileError)
-      throw profileError
-    }
-
-    console.log("[v0] Created user profile")
 
     return { success: true, userId: authData.user.id }
   } catch (error: any) {
