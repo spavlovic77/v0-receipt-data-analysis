@@ -30,29 +30,24 @@ export async function ensureUserWallet(): Promise<{
 
     console.log("[v0] Ensuring wallet for user:", user.id)
 
-    const { error: userCheckError } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
+    const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
 
-    if (userCheckError) {
-      console.error("[v0] Error checking user:", userCheckError)
-    }
-
-    // If user doesn't exist, create them
-    const { error: userInsertError } = await supabase
-      .from("users")
-      .insert({
+    if (!existingUser) {
+      console.log("[v0] User not found in public.users, creating...")
+      const { error: userInsertError } = await supabase.from("users").insert({
         id: user.id,
         email: user.email || "",
       })
-      .select()
-      .maybeSingle()
 
-    // Ignore duplicate key errors (user already exists)
-    if (userInsertError && !userInsertError.message.includes("duplicate")) {
-      console.error("[v0] Error creating user record:", userInsertError)
-      return { success: false, error: "Failed to create user record" }
+      if (userInsertError) {
+        console.error("[v0] Error creating user record:", userInsertError)
+        return { success: false, error: `Failed to create user record: ${userInsertError.message}` }
+      }
+
+      console.log("[v0] User record created successfully")
+    } else {
+      console.log("[v0] User already exists in public.users")
     }
-
-    console.log("[v0] User record ensured in public.users")
 
     // Check if wallet already exists
     const { data: existingWallet, error: fetchError } = await supabase
