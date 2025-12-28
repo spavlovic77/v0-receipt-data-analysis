@@ -3,6 +3,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
 import { LoginRefresher } from "@/components/login-refresher"
+import { OnboardingModal } from "@/components/onboarding-modal"
 import { createClient } from "@/lib/supabase/server"
 
 export default async function Home() {
@@ -12,8 +13,17 @@ export default async function Home() {
   } = await supabase.auth.getUser()
 
   let hasWallet = false
+  let isNewUser = false
+
   if (user) {
+    // Check if user exists in public.users table
+    const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
+
+    isNewUser = !existingUser
+
+    // Check if user has wallet
     const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).maybeSingle()
+
     hasWallet = !!wallet
   }
 
@@ -21,10 +31,12 @@ export default async function Home() {
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <LoginRefresher />
 
+      {user && <OnboardingModal userId={user.id} userEmail={user.email || ""} isNewUser={isNewUser || !hasWallet} />}
+
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
 
       <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
-        <HeaderAuthButtons isLoggedIn={!!user} />
+        <HeaderAuthButtons isLoggedIn={!!user} userEmail={user?.email} />
         <a
           href="https://github.com/spavlovic77/v0-receipt-data-analysis"
           target="_blank"
@@ -45,11 +57,6 @@ export default async function Home() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
-        {user && (
-          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm">
-            Prihlaseny ako: {user.email}
-          </div>
-        )}
         {user && hasWallet && <WalletBalanceDisplay />}
       </div>
 

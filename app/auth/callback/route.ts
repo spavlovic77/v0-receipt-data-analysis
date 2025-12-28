@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { ensureUserWallet } from "@/app/actions/wallet-actions"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -21,16 +20,12 @@ export async function GET(request: Request) {
     if (data?.user) {
       console.log("[v0] User authenticated:", data.user.email)
 
-      try {
-        const walletResult = await ensureUserWallet(data.user.id)
-        if (walletResult.success) {
-          console.log("[v0] Wallet created:", walletResult.wallet?.address)
-        } else {
-          console.error("[v0] Wallet creation failed:", walletResult.error)
-        }
-      } catch (err) {
-        console.error("[v0] Wallet creation error:", err)
-      }
+      const redirectUrl = new URL(requestUrl.origin)
+      redirectUrl.searchParams.set("new_login", "true")
+
+      const response = NextResponse.redirect(redirectUrl, { status: 307 })
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate")
+      return response
     }
   }
 
