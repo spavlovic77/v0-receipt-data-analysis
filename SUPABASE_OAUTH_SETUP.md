@@ -28,7 +28,7 @@ This guide walks you through enabling Google, Apple, and GitHub OAuth providers 
 5. Select **Web application**
 6. Add Authorized redirect URI:
    ```
-   https://[YOUR-PROJECT-REF].supabase.co/auth/v1/callback
+   https://zffipoonbcmmphxkubks.supabase.co/auth/v1/callback
    ```
 7. Copy your **Client ID** and **Client Secret**
 
@@ -52,7 +52,7 @@ This guide walks you through enabling Google, Apple, and GitHub OAuth providers 
 5. Create a **Service ID** for web authentication
 6. Configure Return URLs:
    ```
-   https://[YOUR-PROJECT-REF].supabase.co/auth/v1/callback
+   https://zffipoonbcmmphxkubks.supabase.co/auth/v1/callback
    ```
 7. Create a **Key** for Sign in with Apple
 8. Note your **Services ID**, **Team ID**, and **Key ID**
@@ -79,7 +79,7 @@ This guide walks you through enabling Google, Apple, and GitHub OAuth providers 
    - **Homepage URL**: Your app URL
    - **Authorization callback URL**:
      ```
-     https://[YOUR-PROJECT-REF].supabase.co/auth/v1/callback
+     https://zffipoonbcmmphxkubks.supabase.co/auth/v1/callback
      ```
 4. Click **Register application**
 5. Copy your **Client ID**
