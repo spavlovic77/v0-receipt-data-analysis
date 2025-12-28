@@ -6,14 +6,15 @@ import { createClient } from "@/lib/supabase/client"
 interface SocialLoginButtonsProps {
   onLoading: (loading: boolean) => void
   onError: (error: string | null) => void
-  onWalletCreating: (creating: boolean) => void
+  onCreationStep: (step: "auth" | "wallet" | "complete") => void
   onSuccess: () => void
 }
 
-export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuccess }: SocialLoginButtonsProps) {
+export function SocialLoginButtons({ onLoading, onError, onCreationStep, onSuccess }: SocialLoginButtonsProps) {
   const handleSocialLogin = async (provider: "google") => {
     onLoading(true)
     onError(null)
+    onCreationStep("auth")
     const supabase = createClient()
 
     try {
@@ -28,9 +29,7 @@ export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuc
 
       if (error) {
         if (error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")) {
-          throw new Error(
-            `${provider.charAt(0).toUpperCase() + provider.slice(1)} prihlásenie nie je povolené. Prosím povoľte OAuth providera v Supabase Dashboard > Authentication > Providers.`,
-          )
+          throw new Error(`Google prihlásenie nie je povolené. Prosím povoľte OAuth providera v Supabase Dashboard.`)
         }
         throw error
       }
@@ -40,19 +39,19 @@ export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuc
       console.error("[v0] Social login error:", error)
       onError(error instanceof Error ? error.message : "Prihlásenie zlyhalo")
       onLoading(false)
+      onCreationStep("auth")
     }
   }
 
   return (
     <div className="space-y-3">
-      {/* Google Login */}
       <Button
         type="button"
         variant="outline"
-        className="w-full h-12 text-base font-medium hover:bg-accent transition-colors bg-transparent"
+        className="w-full h-12 text-base font-semibold hover:bg-accent hover:border-primary/20 transition-all duration-200 group bg-transparent"
         onClick={() => handleSocialLogin("google")}
       >
-        <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -72,6 +71,7 @@ export function SocialLoginButtons({ onLoading, onError, onWalletCreating, onSuc
         </svg>
         Pokračovať s Google
       </Button>
+      {/* </CHANGE> */}
     </div>
   )
 }

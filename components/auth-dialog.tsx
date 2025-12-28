@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ensureUserWallet } from "@/app/actions/wallet-actions"
-import { Loader2 } from "lucide-react"
+import { Loader2, Mail, LogIn } from "lucide-react"
 import { SocialLoginButtons } from "./social-login-buttons"
 
 interface AuthDialogProps {
@@ -22,9 +22,8 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isCreatingWallet, setIsCreatingWallet] = useState(false)
+  const [creationStep, setCreationStep] = useState<"auth" | "wallet" | "complete">("auth")
   const [error, setError] = useState<string | null>(null)
-  const [showEmailLogin, setShowEmailLogin] = useState(false)
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode)
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -32,6 +31,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
     const supabase = createClient()
     setIsLoading(true)
     setError(null)
+    setCreationStep("auth")
 
     try {
       if (mode === "signup") {
@@ -45,12 +45,18 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         if (error) throw error
 
         if (data.user) {
-          setIsCreatingWallet(true)
+          setCreationStep("wallet")
           const walletResult = await ensureUserWallet()
 
           if (!walletResult.success) {
-            throw new Error(`Registrácia úspešná, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+            throw new Error(walletResult.error || "Vytvorenie peňaženky zlyhalo")
           }
+
+          setCreationStep("complete")
+          setTimeout(() => {
+            onOpenChange(false)
+            if (onSuccess) onSuccess()
+          }, 1000)
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -60,28 +66,34 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         if (error) throw error
 
         if (data.user) {
-          setIsCreatingWallet(true)
+          setCreationStep("wallet")
           const walletResult = await ensureUserWallet()
 
           if (!walletResult.success) {
-            throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+            throw new Error(walletResult.error || "Vytvorenie peňaženky zlyhalo")
           }
+
+          setCreationStep("complete")
+          setTimeout(() => {
+            onOpenChange(false)
+            if (onSuccess) onSuccess()
+          }, 1000)
         }
       }
-      if (onSuccess) onSuccess()
     } catch (error: unknown) {
       setError(
         error instanceof Error ? error.message : mode === "signup" ? "Registrácia zlyhala" : "Prihlásenie zlyhalo",
       )
+      setCreationStep("auth")
     } finally {
       setIsLoading(false)
-      setIsCreatingWallet(false)
     }
   }
 
   const handleDemoLogin = async () => {
     setIsLoading(true)
     setError(null)
+    setCreationStep("auth")
     const supabase = createClient()
 
     try {
@@ -96,22 +108,40 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
       if (error) throw error
 
       if (data.user) {
-        setIsCreatingWallet(true)
+        setCreationStep("wallet")
         const walletResult = await ensureUserWallet()
 
         if (!walletResult.success) {
-          throw new Error(`Prihlásenie úspešné, ale vytvorenie peňaženky zlyhalo: ${walletResult.error}`)
+          throw new Error(walletResult.error || "Vytvorenie peňaženky zlyhalo")
         }
-      }
 
-      if (onSuccess) onSuccess()
+        setCreationStep("complete")
+        setTimeout(() => {
+          onOpenChange(false)
+          if (onSuccess) onSuccess()
+        }, 1000)
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Demo prihlásenie zlyhalo")
+      setCreationStep("auth")
     } finally {
       setIsLoading(false)
-      setIsCreatingWallet(false)
     }
   }
+
+  const getLoadingMessage = () => {
+    switch (creationStep) {
+      case "auth":
+        return mode === "signup" ? "Vytváram účet..." : "Prihlasujem..."
+      case "wallet":
+        return "Vytváram krypto peňaženku..."
+      case "complete":
+        return "Hotovo!"
+      default:
+        return "Načítavam..."
+    }
+  }
+  // </CHANGE>
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -122,34 +152,49 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
           </DialogTitle>
           <DialogDescription>
             {mode === "signup"
-              ? "Zaregistrujte sa a získajte svoju krypto peňaženku"
-              : "Prihláste sa pre prístup k vašej peňaženke"}
+              ? "Zaregistrujte sa a získajte svoju krypto peňaženku automaticky"
+              : "Prihláste sa pre prístup k vašej peňaženke a dokladom"}
           </DialogDescription>
         </DialogHeader>
 
-        {isCreatingWallet ? (
-          <div className="flex flex-col items-center justify-center py-8 gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <div className="text-center">
-              <p className="font-medium">Vytváram peňaženku...</p>
-              <p className="text-sm text-muted-foreground">Prosím počkajte</p>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-4">
+            <div className="relative">
+              <Loader2 className="w-12 h-12 animate-spin text-primary" />
+              <div className="absolute inset-0 blur-xl bg-primary/20 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+              <p className="font-semibold text-lg">{getLoadingMessage()}</p>
+              <p className="text-sm text-muted-foreground">
+                {creationStep === "wallet" && "Toto môže trvať niekoľko sekúnd"}
+              </p>
+
+              {/* Progress indicator */}
+              <div className="flex justify-center gap-2 pt-4">
+                <div
+                  className={`w-2 h-2 rounded-full transition-colors ${creationStep === "auth" ? "bg-primary" : "bg-primary/30"}`}
+                />
+                <div
+                  className={`w-2 h-2 rounded-full transition-colors ${creationStep === "wallet" ? "bg-primary" : "bg-primary/30"}`}
+                />
+                <div
+                  className={`w-2 h-2 rounded-full transition-colors ${creationStep === "complete" ? "bg-primary" : "bg-primary/30"}`}
+                />
+              </div>
             </div>
           </div>
-        ) : !showEmailLogin ? (
+        ) : (
           <div className="space-y-4">
+            {/* Social login first */}
             <SocialLoginButtons
               onLoading={setIsLoading}
               onError={setError}
-              onWalletCreating={setIsCreatingWallet}
+              onCreationStep={setCreationStep}
               onSuccess={() => {
                 onOpenChange(false)
                 if (onSuccess) onSuccess()
               }}
             />
-
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
-            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
@@ -160,55 +205,77 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
               </div>
             </div>
 
+            {/* Email/password form always visible */}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="vas@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Heslo</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                {mode === "signup" && <p className="text-xs text-muted-foreground">Minimálne 6 znakov</p>}
+              </div>
+
+              {error && (
+                <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">{error}</div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <Button type="submit" disabled={isLoading} className="w-full h-11 text-base font-medium">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  {mode === "signup" ? "Registrovať sa" : "Prihlásiť sa"}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
+                  className="w-full"
+                >
+                  {mode === "signup" ? "Už mám účet" : "Vytvoriť nový účet"}
+                </Button>
+              </div>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Alebo vyskúšajte</span>
+              </div>
+            </div>
+
             <Button
               type="button"
               variant="outline"
-              className="w-full bg-transparent"
-              onClick={() => setShowEmailLogin(true)}
+              className="w-full h-11 text-base font-medium bg-transparent"
+              onClick={handleDemoLogin}
               disabled={isLoading}
             >
-              Pokračovať s emailom
-            </Button>
-
-            <Button type="button" variant="ghost" className="w-full" onClick={handleDemoLogin} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Demo prihlásenie
+              Demo účet
             </Button>
           </div>
-        ) : (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Heslo</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button type="submit" disabled={isLoading} className="w-full">
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {mode === "signup" ? "Registrovať sa" : "Prihlásiť"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-                className="w-full"
-              >
-                {mode === "signup" ? "Mám už účet" : "Vytvoriť nový účet"}
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setShowEmailLogin(false)} className="w-full">
-                ← Späť
-              </Button>
-            </div>
-          </form>
+          // </CHANGE>
         )}
       </DialogContent>
     </Dialog>
