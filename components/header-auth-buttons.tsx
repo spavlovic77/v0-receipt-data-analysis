@@ -9,15 +9,14 @@ import { useRouter } from "next/navigation"
 
 interface HeaderAuthButtonsProps {
   isLoggedIn: boolean
+  userEmail?: string | null
 }
 
-export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
+export function HeaderAuthButtons({ isLoggedIn, userEmail }: HeaderAuthButtonsProps) {
   const [showAuth, setShowAuth] = useState(false)
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
   const [loggingOut, setLoggingOut] = useState(false)
   const router = useRouter()
-
-  console.log("[v0] HeaderAuthButtons - isLoggedIn:", isLoggedIn)
 
   const handleSignIn = () => {
     setAuthMode("signin")
@@ -31,25 +30,26 @@ export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    console.log("[v0] Logging out...")
     const supabase = createClient()
     await supabase.auth.signOut()
-    console.log("[v0] Logged out, refreshing page...")
     router.refresh()
   }
 
   if (isLoggedIn) {
     return (
-      <Button
-        onClick={handleLogout}
-        disabled={loggingOut}
-        variant="ghost"
-        size="sm"
-        className="gap-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
-      >
-        <LogOut className="w-4 h-4" />
-        {loggingOut ? "Logging out..." : "Logout"}
-      </Button>
+      <div className="flex items-center gap-3">
+        {userEmail && <span className="text-sm text-muted-foreground hidden sm:inline">{userEmail}</span>}
+        <Button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          variant="ghost"
+          size="sm"
+          className="gap-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          {loggingOut ? "Odhlasujem..." : "Odhlásiť"}
+        </Button>
+      </div>
     )
   }
 
@@ -58,11 +58,11 @@ export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
       <div className="flex items-center gap-2">
         <Button onClick={handleSignIn} variant="ghost" size="sm" className="gap-2">
           <LogIn className="w-4 h-4" />
-          Login
+          Prihlásiť
         </Button>
         <Button onClick={handleSignUp} variant="default" size="sm" className="gap-2">
           <UserPlus className="w-4 h-4" />
-          Sign Up
+          Registrovať
         </Button>
       </div>
 
@@ -75,7 +75,6 @@ export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
           router.refresh()
         }}
       />
-      {/* </CHANGE> */}
     </>
   )
 }

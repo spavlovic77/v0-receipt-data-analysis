@@ -2,7 +2,6 @@ import { ReceiptAnalyzer } from "@/components/receipt-analyzer"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
-import { LoginRefresher } from "@/components/login-refresher"
 import { OnboardingModal } from "@/components/onboarding-modal"
 import { createClient } from "@/lib/supabase/server"
 
@@ -12,26 +11,32 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("[v0] Page load - user:", user?.email || "not logged in")
+
   let hasWallet = false
-  let isNewUser = false
+  let needsOnboarding = false
 
   if (user) {
     // Check if user exists in public.users table
     const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
 
-    isNewUser = !existingUser
+    console.log("[v0] Existing user in DB:", !!existingUser)
 
     // Check if user has wallet
     const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).maybeSingle()
 
     hasWallet = !!wallet
+    console.log("[v0] Has wallet:", hasWallet)
+
+    needsOnboarding = !existingUser || !wallet
+    console.log("[v0] Needs onboarding:", needsOnboarding)
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
-      <LoginRefresher />
-
-      {user && <OnboardingModal userId={user.id} userEmail={user.email || ""} isNewUser={isNewUser || !hasWallet} />}
+      {user && needsOnboarding && (
+        <OnboardingModal userId={user.id} userEmail={user.email || ""} needsOnboarding={needsOnboarding} />
+      )}
 
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
 

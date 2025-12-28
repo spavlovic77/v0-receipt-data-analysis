@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Loader2, CheckCircle, XCircle, User, Wallet } from "lucide-react"
 import { createUserRecord, createWalletForUser } from "@/app/actions/wallet-actions"
@@ -10,41 +10,43 @@ import { Button } from "@/components/ui/button"
 interface OnboardingModalProps {
   userId: string
   userEmail: string
-  isNewUser: boolean
+  needsOnboarding: boolean // renamed from isNewUser, server tells us if onboarding needed
 }
 
 type Step = "user" | "wallet" | "complete"
 type Status = "pending" | "loading" | "success" | "error"
 
-export function OnboardingModal({ userId, userEmail, isNewUser }: OnboardingModalProps) {
+export function OnboardingModal({ userId, userEmail, needsOnboarding }: OnboardingModalProps) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(needsOnboarding)
   const [currentStep, setCurrentStep] = useState<Step>("user")
   const [userStatus, setUserStatus] = useState<Status>("pending")
   const [walletStatus, setWalletStatus] = useState<Status>("pending")
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [started, setStarted] = useState(false)
 
   useEffect(() => {
-    // Check if user just logged in via OAuth
-    const isNewLogin = searchParams.get("new_login") === "true"
-    if (isNewLogin && isNewUser) {
-      setOpen(true)
+    if (needsOnboarding && !started) {
+      setStarted(true)
       startOnboarding()
     }
-  }, [searchParams, isNewUser])
+  }, [needsOnboarding, started])
 
   const startOnboarding = async () => {
+    console.log("[v0] Starting onboarding for user:", userEmail)
+
     // Step 1: Create user record
     setCurrentStep("user")
     setUserStatus("loading")
 
+    console.log("[v0] Creating user record...")
     const userResult = await createUserRecord(userId, userEmail)
+    console.log("[v0] User record result:", userResult)
 
     if (!userResult.success) {
       setUserStatus("error")
-      setError(userResult.error || "Failed to create user")
+      setError(userResult.error || "Nepodarilo sa vytvoriť používateľa")
       return
     }
 
@@ -54,25 +56,24 @@ export function OnboardingModal({ userId, userEmail, isNewUser }: OnboardingModa
     setCurrentStep("wallet")
     setWalletStatus("loading")
 
+    console.log("[v0] Creating wallet...")
     const walletResult = await createWalletForUser(userId)
+    console.log("[v0] Wallet result:", walletResult)
 
     if (!walletResult.success) {
       setWalletStatus("error")
-      setError(walletResult.error || "Failed to create wallet")
+      setError(walletResult.error || "Nepodarilo sa vytvoriť peňaženku")
       return
     }
 
     setWalletStatus("success")
     setWalletAddress(walletResult.wallet?.address || null)
     setCurrentStep("complete")
+    console.log("[v0] Onboarding complete!")
   }
 
   const handleClose = () => {
     setOpen(false)
-    // Clean up URL params
-    const url = new URL(window.location.href)
-    url.searchParams.delete("new_login")
-    window.history.replaceState({}, "", url.pathname)
     router.refresh()
   }
 
@@ -96,9 +97,11 @@ export function OnboardingModal({ userId, userEmail, isNewUser }: OnboardingModa
     }
   }
 
+  if (!needsOnboarding) return null
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
             {currentStep === "complete" ? "Vitajte!" : "Nastavujem váš účet..."}
