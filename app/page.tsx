@@ -17,18 +17,14 @@ export default async function Home() {
   let needsOnboarding = false
 
   if (user) {
-    // Check if user exists in public.users table
-    const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
-
-    console.log("[v0] Existing user in DB:", !!existingUser)
-
-    // Check if user has wallet
+    // User is already in auth.users from Supabase Auth
     const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).maybeSingle()
 
     hasWallet = !!wallet
     console.log("[v0] Has wallet:", hasWallet)
 
-    needsOnboarding = !existingUser || !wallet
+    // User needs onboarding only if they don't have a wallet
+    needsOnboarding = !hasWallet
     console.log("[v0] Needs onboarding:", needsOnboarding)
   }
 

@@ -3,24 +3,21 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, CheckCircle, XCircle, User, Wallet } from "lucide-react"
-import { createUserRecord, createWalletForUser } from "@/app/actions/wallet-actions"
+import { Loader2, CheckCircle, XCircle, Wallet } from "lucide-react"
+import { createWalletForUser } from "@/app/actions/wallet-actions"
 import { Button } from "@/components/ui/button"
 
 interface OnboardingModalProps {
   userId: string
   userEmail: string
-  needsOnboarding: boolean // renamed from isNewUser, server tells us if onboarding needed
+  needsOnboarding: boolean
 }
 
-type Step = "user" | "wallet" | "complete"
 type Status = "pending" | "loading" | "success" | "error"
 
 export function OnboardingModal({ userId, userEmail, needsOnboarding }: OnboardingModalProps) {
   const router = useRouter()
   const [open, setOpen] = useState(needsOnboarding)
-  const [currentStep, setCurrentStep] = useState<Step>("user")
-  const [userStatus, setUserStatus] = useState<Status>("pending")
   const [walletStatus, setWalletStatus] = useState<Status>("pending")
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -36,27 +33,9 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
   const startOnboarding = async () => {
     console.log("[v0] Starting onboarding for user:", userEmail)
 
-    // Step 1: Create user record
-    setCurrentStep("user")
-    setUserStatus("loading")
-
-    console.log("[v0] Creating user record...")
-    const userResult = await createUserRecord(userId, userEmail)
-    console.log("[v0] User record result:", userResult)
-
-    if (!userResult.success) {
-      setUserStatus("error")
-      setError(userResult.error || "Nepodarilo sa vytvoriť používateľa")
-      return
-    }
-
-    setUserStatus("success")
-
-    // Step 2: Create wallet
-    setCurrentStep("wallet")
     setWalletStatus("loading")
 
-    console.log("[v0] Creating wallet...")
+    console.log("[v0] Creating Coinbase wallet...")
     const walletResult = await createWalletForUser(userId)
     console.log("[v0] Wallet result:", walletResult)
 
@@ -68,7 +47,6 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
 
     setWalletStatus("success")
     setWalletAddress(walletResult.wallet?.address || null)
-    setCurrentStep("complete")
     console.log("[v0] Onboarding complete!")
   }
 
@@ -79,7 +57,6 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
 
   const handleRetry = () => {
     setError(null)
-    setUserStatus("pending")
     setWalletStatus("pending")
     startOnboarding()
   }
@@ -104,24 +81,12 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-center text-xl">
-            {currentStep === "complete" ? "Vitajte!" : "Nastavujem váš účet..."}
+            {walletStatus === "success" ? "Vitajte!" : "Nastavujem váš účet..."}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-6 space-y-6">
-          {/* Step 1: User creation */}
-          <div className="flex items-center gap-4">
-            {getStatusIcon(userStatus)}
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Vytváram používateľský účet</span>
-              </div>
-              {userStatus === "success" && <p className="text-sm text-muted-foreground mt-1">{userEmail}</p>}
-            </div>
-          </div>
-
-          {/* Step 2: Wallet creation */}
+          {/* Wallet creation step */}
           <div className="flex items-center gap-4">
             {getStatusIcon(walletStatus)}
             <div className="flex-1">
@@ -148,7 +113,7 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
           )}
 
           {/* Success message */}
-          {currentStep === "complete" && (
+          {walletStatus === "success" && (
             <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
               <p className="text-green-600 font-medium">Účet bol úspešne vytvorený!</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -164,8 +129,8 @@ export function OnboardingModal({ userId, userEmail, needsOnboarding }: Onboardi
               Skúsiť znova
             </Button>
           )}
-          {(currentStep === "complete" || error) && (
-            <Button onClick={handleClose}>{currentStep === "complete" ? "Začať" : "Zavrieť"}</Button>
+          {(walletStatus === "success" || error) && (
+            <Button onClick={handleClose}>{walletStatus === "success" ? "Začať" : "Zavrieť"}</Button>
           )}
         </div>
       </DialogContent>
