@@ -28,7 +28,30 @@ export async function ensureUserWallet(): Promise<{
       return { success: false, error: "User not authenticated" }
     }
 
-    console.log("[v0] Ensuring wallet for user:", user.id)
+    console.log("[v0] Ensuring wallet for user:", user.id, user.email)
+
+    const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
+
+    if (!existingUser) {
+      console.log("[v0] Creating user record in public.users")
+      const { error: insertUserError } = await supabase.from("users").insert({
+        id: user.id,
+        email: user.email,
+      })
+
+      if (insertUserError) {
+        // Ignore duplicate key error (23505) - user was created by another process
+        if (insertUserError.code !== "23505") {
+          console.error("[v0] Error creating user record:", insertUserError)
+          return { success: false, error: "Failed to create user record" }
+        }
+        console.log("[v0] User already exists (concurrent creation)")
+      } else {
+        console.log("[v0] User record created successfully")
+      }
+    } else {
+      console.log("[v0] User record already exists")
+    }
 
     // Check if wallet already exists
     const { data: existingWallet, error: fetchError } = await supabase
