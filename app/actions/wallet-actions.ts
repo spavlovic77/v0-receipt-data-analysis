@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import { createUserWallet } from "@/lib/cdp-wallet"
 
 /**
- * Create or get wallet for the current user
+ * Ensure user exists and has a wallet
  */
 export async function ensureUserWallet(): Promise<{
   success: boolean
@@ -18,7 +18,6 @@ export async function ensureUserWallet(): Promise<{
   try {
     const supabase = await createClient()
 
-    // Get current user
     const {
       data: { user },
       error: authError,
@@ -28,29 +27,19 @@ export async function ensureUserWallet(): Promise<{
       return { success: false, error: "User not authenticated" }
     }
 
-    console.log("[v0] Ensuring wallet for user:", user.id, user.email)
-
+    // Ensure user record exists in public.users
     const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
 
     if (!existingUser) {
-      console.log("[v0] Creating user record in public.users")
       const { error: insertUserError } = await supabase.from("users").insert({
         id: user.id,
         email: user.email,
       })
 
-      if (insertUserError) {
-        // Ignore duplicate key error (23505) - user was created by another process
-        if (insertUserError.code !== "23505") {
-          console.error("[v0] Error creating user record:", insertUserError)
-          return { success: false, error: "Failed to create user record" }
-        }
-        console.log("[v0] User already exists (concurrent creation)")
-      } else {
-        console.log("[v0] User record created successfully")
+      if (insertUserError && insertUserError.code !== "23505") {
+        console.error("[v0] Error creating user record:", insertUserError)
+        return { success: false, error: "Failed to create user record" }
       }
-    } else {
-      console.log("[v0] User record already exists")
     }
 
     // Check if wallet already exists
@@ -65,9 +54,7 @@ export async function ensureUserWallet(): Promise<{
       return { success: false, error: "Failed to fetch wallet" }
     }
 
-    // Return existing wallet if found
     if (existingWallet) {
-      console.log("[v0] Wallet already exists:", existingWallet.default_address)
       return {
         success: true,
         wallet: {
@@ -79,10 +66,8 @@ export async function ensureUserWallet(): Promise<{
     }
 
     // Create new CDP wallet
-    console.log("[v0] Creating new CDP wallet...")
     const { address, accountId } = await createUserWallet()
 
-    // Save to database
     const { data: newWallet, error: insertError } = await supabase
       .from("wallets")
       .insert({
@@ -95,11 +80,9 @@ export async function ensureUserWallet(): Promise<{
       .single()
 
     if (insertError) {
-      console.error("[v0] Error saving wallet to database:", insertError)
+      console.error("[v0] Error saving wallet:", insertError)
       return { success: false, error: "Failed to save wallet" }
     }
-
-    console.log("[v0] Wallet created and saved successfully:", address)
 
     return {
       success: true,

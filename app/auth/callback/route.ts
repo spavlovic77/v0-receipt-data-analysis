@@ -1,13 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { createUserProfile } from "@/app/actions/create-user-profile"
+import { ensureUserWallet } from "@/app/actions/wallet-actions"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
 
   console.log("[v0] OAuth callback - code present:", !!code)
-  console.log("[v0] OAuth callback - origin:", requestUrl.origin)
 
   if (code) {
     const supabase = await createClient()
@@ -20,28 +19,22 @@ export async function GET(request: Request) {
     }
 
     if (data?.user) {
-      console.log("[v0] User authenticated successfully!")
-      console.log("[v0] User ID:", data.user.id)
-      console.log("[v0] User email:", data.user.email)
-      console.log("[v0] Session created:", !!data.session)
+      console.log("[v0] User authenticated:", data.user.email)
 
       try {
-        const profileResult = await createUserProfile()
-        if (profileResult.success) {
-          console.log("[v0] User profile created successfully")
+        const walletResult = await ensureUserWallet(data.user.id)
+        if (walletResult.success) {
+          console.log("[v0] Wallet created:", walletResult.wallet?.address)
         } else {
-          console.error("[v0] Profile creation failed:", profileResult.error)
+          console.error("[v0] Wallet creation failed:", walletResult.error)
         }
       } catch (err) {
-        console.error("[v0] Profile creation error:", err)
+        console.error("[v0] Wallet creation error:", err)
       }
     }
   }
 
-  console.log("[v0] Redirecting to:", requestUrl.origin)
   const response = NextResponse.redirect(requestUrl.origin, { status: 307 })
-
   response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate")
-
   return response
 }

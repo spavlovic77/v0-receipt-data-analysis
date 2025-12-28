@@ -8,7 +8,6 @@ export async function mintKreditTokens(receiptId: string) {
   try {
     const supabase = await createClient()
 
-    // Get current user
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -28,17 +27,6 @@ export async function mintKreditTokens(receiptId: string) {
       return { success: false, error: "Receipt not found" }
     }
 
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("name, surname, birth_number")
-      .eq("user_id", user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return { success: false, error: "User profile not found" }
-    }
-
     // Get user's wallet address
     const { data: wallet, error: walletError } = await supabase
       .from("wallets")
@@ -53,13 +41,6 @@ export async function mintKreditTokens(receiptId: string) {
     // Calculate token amount from receipt total
     const receiptTotal = receipt.receipt_data?.total || 0
     const tokenAmount = eurToTokenAmount(receiptTotal)
-
-    console.log("[v0] Minting KREDIT:", {
-      receiptId,
-      receiptTotal,
-      tokenAmount: tokenAmount.toString(),
-      userAddress: wallet.default_address,
-    })
 
     // Check if already minted
     const provider = getProvider()
@@ -78,22 +59,19 @@ export async function mintKreditTokens(receiptId: string) {
 
     const signature = await signReceiptForKredit(
       receiptId,
-      profile.name,
-      profile.surname,
-      profile.birth_number,
+      user.email || "",
+      "",
+      "",
       receipt.dic,
       tokenAmount,
       signerPrivateKey,
     )
 
-    // Return minting data for the user to execute
     return {
       success: true,
       data: {
         receiptId,
-        name: profile.name,
-        surname: profile.surname,
-        birthNumber: profile.birth_number,
+        email: user.email,
         dic: receipt.dic,
         amount: tokenAmount.toString(),
         signature,

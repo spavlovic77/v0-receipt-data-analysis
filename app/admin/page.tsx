@@ -1,52 +1,37 @@
 "use client"
-
-import { useState } from "react"
-import { setupDemoUser } from "@/app/actions/setup-demo"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import Link from "next/link"
 
 export default function AdminPage() {
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
-
-  const handleSetup = async () => {
-    setLoading(true)
-    setResult(null)
-
-    const res = await setupDemoUser()
-    setResult(res)
-    setLoading(false)
-  }
-
   return (
     <div className="container mx-auto p-8 max-w-2xl">
       <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Admin: Setup Demo User</h1>
+        <h1 className="text-2xl font-bold mb-4">Admin: Database Setup</h1>
         <p className="text-muted-foreground mb-6">
-          Click the button below to create/reset the demo user with proper authentication.
+          To reset the database, run the SQL script in the Supabase SQL Editor.
         </p>
 
-        <Button onClick={handleSetup} disabled={loading}>
-          {loading ? "Setting up..." : "Setup Demo User"}
-        </Button>
-
-        {result && (
-          <div className="mt-4 p-4 rounded-lg bg-muted">
-            {result.success ? (
-              <div className="text-green-600">
-                <p className="font-semibold">✓ Demo user created successfully!</p>
-                <p className="text-sm mt-2">Email: demo@example.com</p>
-                <p className="text-sm">Password: demo1234</p>
-                <p className="text-sm">User ID: {result.userId}</p>
-              </div>
-            ) : (
-              <div className="text-red-600">
-                <p className="font-semibold">✗ Error creating demo user</p>
-                <p className="text-sm mt-2">{result.error}</p>
-              </div>
-            )}
+        <div className="space-y-4">
+          <div className="p-4 bg-muted rounded-lg">
+            <h3 className="font-semibold mb-2">Reset Database</h3>
+            <p className="text-sm text-muted-foreground mb-2">
+              Run <code className="bg-background px-1 rounded">scripts/000_reset_database.sql</code> in Supabase SQL
+              Editor to:
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc list-inside">
+              <li>Drop all existing tables</li>
+              <li>Create fresh users, wallets, and scanned_receipts tables</li>
+              <li>Set up auto-user creation trigger</li>
+            </ul>
           </div>
-        )}
+
+          <Link href="/">
+            <Button variant="outline" className="w-full bg-transparent">
+              Back to Home
+            </Button>
+          </Link>
+        </div>
       </Card>
     </div>
   )

@@ -1,7 +1,6 @@
 import { ReceiptAnalyzer } from "@/components/receipt-analyzer"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
-import { CreateWalletButton } from "@/components/create-wallet-button"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
 import { LoginRefresher } from "@/components/login-refresher"
 import { createClient } from "@/lib/supabase/server"
@@ -12,18 +11,10 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  console.log("[v0] Page render - User logged in:", !!user)
-  if (user) {
-    console.log("[v0] User email:", user.email)
-    console.log("[v0] User ID:", user.id)
-  }
-
   let hasWallet = false
   if (user) {
-    const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).single()
-
+    const { data: wallet } = await supabase.from("wallets").select("id").eq("user_id", user.id).maybeSingle()
     hasWallet = !!wallet
-    console.log("[v0] User has wallet:", hasWallet)
   }
 
   return (
@@ -56,15 +47,9 @@ export default async function Home() {
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
         {user && (
           <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-sm">
-            Prihlásený ako: {user.email}
+            Prihlaseny ako: {user.email}
           </div>
         )}
-        {!user && (
-          <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm">
-            Neprihlásený. Kliknite na Prihlásiť sa pre prihlásenie.
-          </div>
-        )}
-        {user && !hasWallet && <CreateWalletButton />}
         {user && hasWallet && <WalletBalanceDisplay />}
       </div>
 

@@ -1,12 +1,10 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { getUserWallet } from "./create-user-wallet"
 
 export async function saveScannedReceipt(receiptId: string, dic: string, receiptData: any) {
   const supabase = await createClient()
 
-  // Get current user
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -15,17 +13,15 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: "User not authenticated" }
   }
 
-  const { data: existing, error: checkError } = await supabase
+  // Check for duplicate
+  const { data: existing } = await supabase
     .from("scanned_receipts")
     .select("id, scanned_at")
     .eq("user_id", user.id)
     .eq("receipt_id", receiptId)
     .maybeSingle()
 
-  console.log("[v0] Duplicate check result:", { existing, checkError, receiptId })
-
   if (existing) {
-    console.log("[v0] Receipt already scanned:", { receiptId, scannedAt: existing.scanned_at })
     return {
       error: "DUPLICATE",
       message: "Tento doklad ste už naskenovali",
@@ -33,32 +29,14 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     }
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("user_profiles")
-    .select("name, surname, birth_number")
-    .eq("user_id", user.id)
-    .single()
-
-  if (profileError || !profile) {
-    return { error: "User profile not found. Please complete your profile first." }
-  }
-
-  const wallet = await getUserWallet(user.id)
+  // Get user's wallet
+  const { data: wallet } = await supabase.from("wallets").select("default_address").eq("user_id", user.id).single()
 
   if (!wallet) {
-    console.error("[v0] Wallet not found for user - should have been created at signup")
-    return { error: "Wallet not found. Please contact support." }
+    return { error: "Wallet not found. Please try logging out and back in." }
   }
 
-  const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
-
-  console.log("[v0] Saving receipt:", {
-    receiptId,
-    dic,
-    userId: user.id,
-    walletAddress: wallet.default_address,
-    message,
-  })
+  const message = `${receiptId}:${user.email}:${dic}`
 
   const { data, error } = await supabase.from("scanned_receipts").insert({
     user_id: user.id,

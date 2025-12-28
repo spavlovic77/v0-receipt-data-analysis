@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createUserProfile } from "@/app/actions/create-user-profile"
 import { Loader2 } from "lucide-react"
 import { SocialLoginButtons } from "./social-login-buttons"
+import { ensureUserWallet } from "@/app/actions/wallet-actions"
 
 interface AuthDialogProps {
   open: boolean
@@ -44,10 +44,9 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         if (error) throw error
 
         if (data.user) {
-          console.log("[v0] Creating user profile...")
-          const profileResult = await createUserProfile()
-          if (!profileResult.success) {
-            console.error("[v0] Profile creation failed:", profileResult.error)
+          const walletResult = await ensureUserWallet()
+          if (!walletResult.success) {
+            console.error("[v0] Wallet creation failed:", walletResult.error)
           }
         }
       } else {
@@ -56,6 +55,11 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
           password,
         })
         if (error) throw error
+
+        const walletResult = await ensureUserWallet()
+        if (!walletResult.success) {
+          console.error("[v0] Wallet creation failed:", walletResult.error)
+        }
       }
 
       onOpenChange(false)
@@ -64,31 +68,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
       setError(
         error instanceof Error ? error.message : mode === "signup" ? "Registrácia zlyhala" : "Prihlásenie zlyhalo",
       )
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleDemoLogin = async () => {
-    setIsLoading(true)
-    setError(null)
-    const supabase = createClient()
-
-    try {
-      const DEMO_EMAIL = "demo@example.com"
-      const DEMO_PASSWORD = "demo1234"
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-      })
-
-      if (error) throw error
-
-      onOpenChange(false)
-      if (onSuccess) onSuccess()
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Demo prihlásenie zlyhalo")
     } finally {
       setIsLoading(false)
     }
@@ -141,11 +120,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
             >
               Pokračovať s emailom
             </Button>
-
-            <Button type="button" variant="ghost" className="w-full" onClick={handleDemoLogin} disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Demo prihlásenie
-            </Button>
           </div>
         ) : (
           <form onSubmit={handleLogin} className="space-y-4">
@@ -177,7 +151,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
                 {mode === "signup" ? "Mám už účet" : "Vytvoriť nový účet"}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowEmailLogin(false)} className="w-full">
-                ← Späť na sociálne siete
+                Späť
               </Button>
             </div>
           </form>
