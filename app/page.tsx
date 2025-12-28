@@ -1,11 +1,22 @@
 import { ReceiptAnalyzer } from "@/components/receipt-analyzer"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
+import { LoginPrompt } from "@/components/login-prompt"
+import { HeaderAuthButtons } from "@/components/header-auth-buttons"
+import { createClient } from "@/lib/supabase/server"
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
+
       <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
+        <HeaderAuthButtons isLoggedIn={!!user} />
         <a
           href="https://github.com/spavlovic77/v0-receipt-data-analysis"
           target="_blank"
@@ -25,6 +36,12 @@ export default function Home() {
         <ThemeToggle />
       </div>
       {/* </CHANGE> */}
+
+      <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
+        {!user ? <LoginPrompt /> : <WalletBalanceDisplay />}
+      </div>
+      {/* </CHANGE> */}
+
       <div className="relative">
         <ReceiptAnalyzer />
       </div>

@@ -1,8 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { signMessageWithCDPWallet } from "@/lib/coinbase-cdp"
-import { createUserWallet, getUserWallet } from "./create-user-wallet"
+import { getUserWallet } from "./create-user-wallet"
 
 export async function saveScannedReceipt(receiptId: string, dic: string, receiptData: any) {
   const supabase = await createClient()
@@ -44,44 +43,28 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: "User profile not found. Please complete your profile first." }
   }
 
-  let wallet = await getUserWallet(user.id)
+  const wallet = await getUserWallet(user.id)
 
   if (!wallet) {
-    console.log("[v0] Creating CDP wallet for user")
-    const result = await createUserWallet(user.id)
-    if (!result.success || !result.wallet) {
-      return { error: "Failed to create wallet for user" }
-    }
-    wallet = result.wallet
+    console.error("[v0] Wallet not found for user - should have been created at signup")
+    return { error: "Wallet not found. Please contact support." }
   }
 
   const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
-
-  console.log("[v0] Signing message with CDP wallet:", {
-    walletAddress: wallet.default_address,
-    message,
-  })
-
-  const signedMessage = await signMessageWithCDPWallet(wallet.default_address, message)
-
-  if (!signedMessage) {
-    return { error: "Failed to sign message with wallet" }
-  }
 
   console.log("[v0] Saving receipt:", {
     receiptId,
     dic,
     userId: user.id,
+    walletAddress: wallet.default_address,
     message,
-    signedMessage,
   })
 
-  // Save to database
   const { data, error } = await supabase.from("scanned_receipts").insert({
     user_id: user.id,
     receipt_id: receiptId,
     dic: dic,
-    signed_message: signedMessage,
+    signed_message: message,
     receipt_data: receiptData,
   })
 
@@ -90,5 +73,5 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: error.message }
   }
 
-  return { data, signedMessage }
+  return { data, message }
 }

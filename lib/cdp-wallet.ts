@@ -6,13 +6,29 @@ import { CdpClient } from "@coinbase/cdp-sdk"
  * Initialize CDP Client with environment variables
  */
 function getCdpClient(): CdpClient {
-  const apiKeyId = process.env.CDP_API_KEY_ID
-  const apiKeySecret = process.env.CDP_API_KEY_SECRET
+  const apiKeyId = process.env.CDP_API_KEY_ID || process.env.CDP_API_KEY_NAME
+  const apiKeySecret = process.env.CDP_API_KEY_SECRET || process.env.CDP_PRIVATE_KEY
   const walletSecret = process.env.CDP_WALLET_SECRET
 
+  console.log("[v0] CDP Credentials Check:", {
+    hasApiKeyId: !!apiKeyId,
+    hasApiKeySecret: !!apiKeySecret,
+    hasWalletSecret: !!walletSecret,
+    apiKeyIdLength: apiKeyId?.length,
+    apiKeySecretLength: apiKeySecret?.length,
+    walletSecretLength: walletSecret?.length,
+    apiKeyIdValue: apiKeyId, // Show full value for debugging
+    walletSecretValue: walletSecret?.substring(0, 20) + "...", // Show prefix only
+  })
+
   if (!apiKeyId || !apiKeySecret || !walletSecret) {
+    const missing = []
+    if (!apiKeyId) missing.push("CDP_API_KEY_ID or CDP_API_KEY_NAME")
+    if (!apiKeySecret) missing.push("CDP_API_KEY_SECRET or CDP_PRIVATE_KEY")
+    if (!walletSecret) missing.push("CDP_WALLET_SECRET")
+
     throw new Error(
-      "CDP credentials not configured. Please set CDP_API_KEY_ID, CDP_API_KEY_SECRET, and CDP_WALLET_SECRET environment variables.",
+      `CDP credentials not configured. Missing: ${missing.join(", ")}. Please set these environment variables.`,
     )
   }
 
@@ -84,19 +100,54 @@ export async function signMessageWithWallet(accountId: string, message: string):
 
 /**
  * Get wallet balance
- * @param accountId - The CDP account ID
+ * @param address - The wallet address
+ * @param networkId - The network ID (e.g., 'base-sepolia')
  * @returns Balance information
  */
-export async function getWalletBalance(accountId: string) {
+export async function getWalletBalance(address: string, networkId = "base-sepolia") {
   try {
+    console.log("[v0] Getting wallet balance for:", { address, networkId })
+
     const cdp = getCdpClient()
-    const account = await cdp.evm.getAccount(accountId)
 
-    const balance = await account.getBalance()
+    const result = await cdp.evm.listTokenBalances({
+      address: address,
+      network: networkId,
+    })
 
-    return balance
+    console.log("[v0] Token balances retrieved:", result)
+
+    // Find native ETH balance (represented by 0xEeeee... address)
+    const nativeBalance = result.balances.find(
+      (balance) =>
+        balance.token.contractAddress?.toLowerCase() === "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" ||
+        balance.token.symbol === "ETH",
+    )
+
+    if (nativeBalance) {
+      // Convert from smallest unit to ETH
+      const readableAmount = Number(nativeBalance.amount.amount) / Math.pow(10, nativeBalance.amount.decimals)
+      console.log("[v0] Native balance (ETH):", readableAmount)
+
+      return {
+        amount: readableAmount.toString(),
+        symbol: nativeBalance.token.symbol,
+        decimals: nativeBalance.amount.decimals,
+      }
+    }
+
+    // If no native balance found, return 0
+    return {
+      amount: "0",
+      symbol: "ETH",
+      decimals: 18,
+    }
   } catch (error) {
     console.error("[v0] Error getting wallet balance:", error)
+    console.error("[v0] Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     throw new Error(`Failed to get wallet balance: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
