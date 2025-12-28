@@ -2,13 +2,15 @@
 
 import type React from "react"
 import { useCallback, useState, useEffect } from "react"
-import { Upload, FileText, Sparkles, Database, QrCode } from "lucide-react"
+import { Upload, FileText, Sparkles, Database, QrCode, LogIn } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { fetchReceiptById } from "@/app/actions/fetch-receipt"
+import { saveScannedReceipt } from "@/app/actions/save-receipt"
 import { QrScanner } from "@/components/qr-scanner"
-import { RegistrationPrompt } from "@/components/registration-prompt"
+import { AuthDialog } from "@/components/auth-dialog"
 import { DuplicateReceiptDialog } from "@/components/duplicate-receipt-dialog"
 import { createClient } from "@/lib/supabase/client"
+import { Button } from "@/components/ui/button"
 
 interface FileUploaderProps {
   onUpload: (content: string) => void
@@ -30,8 +32,10 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
   const [loadingSample, setLoadingSample] = useState<string | null>(null)
   const [draggingSample, setDraggingSample] = useState<string | null>(null)
   const [loadingReceipt, setLoadingReceipt] = useState(false)
-  const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false)
-  const [scannedReceiptData, setScannedReceiptData] = useState<{
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showAuthDialog, setShowAuthDialog] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [pendingReceipt, setPendingReceipt] = useState<{
     receiptId: string
     dic: string
     receipt: any
@@ -43,9 +47,18 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
     receiptId: string
     scannedAt?: string
   } | null>(null)
+  const [isProcessingAfterLogin, setIsProcessingAfterLogin] = useState(false)
 
   useEffect(() => {
-    // No authentication check needed anymore
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setIsAuthenticated(!!user)
+      setUserEmail(user?.email || null)
+    }
+    checkAuth()
   }, [])
 
   const handleFile = useCallback(
@@ -133,6 +146,13 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
       setLoadingReceipt(true)
 
       try {
+        if (!isAuthenticated) {
+          console.log("[v0] User not authenticated, showing auth dialog")
+          setShowAuthDialog(true)
+          setLoadingReceipt(false)
+          return
+        }
+
         const receipts = await fetchReceiptById(receiptId.trim())
         console.log("[v0] Receipts from QR scan:", receipts)
 
@@ -143,6 +163,30 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         const receipt = receipts[0]
         const dic = receipt.cashRegisterCode || "unknown"
 
+        console.log("[v0] User authenticated, saving receipt")
+        const saveResult = await saveScannedReceipt(receiptId, dic, receipt)
+        console.log("[v0] Save result:", saveResult)
+
+        if (saveResult.error) {
+          if (saveResult.error === "DUPLICATE") {
+            console.log("[v0] Duplicate receipt detected")
+            setDuplicateReceiptInfo({
+              receiptId,
+              scannedAt: saveResult.scannedAt,
+            })
+            setShowDuplicateDialog(true)
+            setLoadingReceipt(false)
+            return
+          } else {
+            console.error("[v0] Error saving receipt:", saveResult.error)
+            alert(`Doklad bol načítaný, ale nepodarilo sa ho uložiť: ${saveResult.error}`)
+            setLoadingReceipt(false)
+            return
+          }
+        }
+
+        console.log("[v0] Receipt saved successfully")
+
         // Convert to string format for onUpload
         const dataString = JSON.stringify({
           source: "api",
@@ -152,23 +196,6 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         const fileName = `Doklad ${receiptId.substring(0, 15)}...`
         setFileName(fileName)
         onUpload(dataString)
-
-        // Store receipt data and show registration prompt if not authenticated
-        const supabase = createClient()
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-
-        if (!user) {
-          setScannedReceiptData({
-            receiptId,
-            dic,
-            receipt,
-            dataString,
-            fileName,
-          })
-          setShowRegistrationPrompt(true)
-        }
       } catch (error) {
         console.error("[v0] Error fetching receipt:", error)
         alert(error instanceof Error ? error.message : "Nepodarilo sa načítať doklad")
@@ -176,11 +203,51 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         setLoadingReceipt(false)
       }
     },
-    [onUpload],
+    [onUpload, isAuthenticated],
   )
+
+  const handleAuthSuccess = () => {
+    window.location.reload()
+  }
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setIsAuthenticated(false)
+    setUserEmail(null)
+  }
 
   return (
     <div className="space-y-6 md:space-y-8">
+      {isProcessingAfterLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="text-center space-y-2">
+              <p className="text-lg font-semibold">Spracovávam doklad...</p>
+              <p className="text-sm text-muted-foreground">Ukladám a pripravujem kategorizáciu</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAuthenticated && userEmail && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <LogIn className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Prihlásený ako</p>
+              <p className="text-xs text-muted-foreground">{userEmail}</p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            Odhlásiť
+          </Button>
+        </div>
+      )}
+
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl p-8 md:p-12">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
 
@@ -292,11 +359,7 @@ export function FileUploader({ onUpload }: FileUploaderProps) {
         </div>
       )}
 
-      <RegistrationPrompt
-        open={showRegistrationPrompt}
-        onOpenChange={setShowRegistrationPrompt}
-        receiptData={scannedReceiptData}
-      />
+      <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} onSuccess={handleAuthSuccess} />
       <DuplicateReceiptDialog
         open={showDuplicateDialog}
         onOpenChange={setShowDuplicateDialog}
