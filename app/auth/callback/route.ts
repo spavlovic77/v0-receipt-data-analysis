@@ -8,7 +8,6 @@ export async function GET(request: Request) {
 
   console.log("[v0] OAuth callback received")
   console.log("[v0] Code:", code ? "present" : "missing")
-  console.log("[v0] Full URL:", requestUrl.toString())
 
   if (code) {
     const supabase = createClient()
@@ -17,18 +16,35 @@ export async function GET(request: Request) {
     console.log("[v0] Exchange code result:", {
       hasUser: !!data?.user,
       userId: data?.user?.id,
+      userEmail: data?.user?.email,
       error: error?.message,
     })
 
-    if (!error && data?.user) {
-      // Create wallet for social login user
-      console.log("[v0] Calling ensureUserWallet for user:", data.user.id)
-      const walletResult = await ensureUserWallet()
-      console.log("[v0] Wallet creation result:", walletResult)
+    if (error) {
+      console.error("[v0] OAuth error:", error)
+      return NextResponse.redirect(`${requestUrl.origin}?error=auth_failed`)
+    }
+
+    if (data?.user) {
+      console.log("[v0] Creating user record and wallet for:", data.user.email)
+
+      try {
+        const walletResult = await ensureUserWallet()
+        console.log("[v0] ensureUserWallet result:", walletResult)
+
+        if (!walletResult.success) {
+          console.error("[v0] Failed to ensure wallet:", walletResult.error)
+          // Continue anyway - user is logged in, wallet can be created later
+        } else {
+          console.log("[v0] User and wallet ready:", walletResult.wallet?.address)
+        }
+      } catch (err) {
+        console.error("[v0] Exception in ensureUserWallet:", err)
+        // Continue anyway
+      }
     }
   }
 
-  // Redirect to home page
-  console.log("[v0] Redirecting to:", requestUrl.origin)
+  console.log("[v0] OAuth complete, redirecting to home")
   return NextResponse.redirect(requestUrl.origin)
 }
