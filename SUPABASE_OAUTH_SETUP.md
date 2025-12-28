@@ -94,7 +94,30 @@ This guide walks you through enabling Google, Apple, and GitHub OAuth providers 
 
 ---
 
-## Step 5: Test OAuth Login
+## Step 5: Configure Site URL in Supabase (CRITICAL!)
+
+**This is the most important step to fix localhost redirect issues!**
+
+1. Go to Supabase Dashboard > **Authentication** > **URL Configuration**
+2. Set **Site URL** to your production URL:
+   ```
+   https://your-app.vercel.app
+   ```
+   (Use the value from your `NEXT_PUBLIC_SITE_URL` environment variable)
+
+3. Add to **Redirect URLs** (whitelist):
+   ```
+   https://your-app.vercel.app/*
+   http://localhost:3000/* (for local development)
+   ```
+
+4. Click **Save**
+
+**Why this matters**: Even though our code passes the correct redirect URL, Supabase validates it against the configured Site URL. If not set, it defaults to localhost.
+
+---
+
+## Step 6: Test OAuth Login
 
 1. Open your app
 2. Click on any social login button (Google, Apple, or GitHub)

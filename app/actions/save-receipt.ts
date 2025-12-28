@@ -1,7 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { createUserWallet, getUserWallet } from "./create-user-wallet"
+import { getUserWallet } from "./create-user-wallet"
 
 export async function saveScannedReceipt(receiptId: string, dic: string, receiptData: any) {
   const supabase = await createClient()
@@ -43,15 +43,11 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     return { error: "User profile not found. Please complete your profile first." }
   }
 
-  let wallet = await getUserWallet(user.id)
+  const wallet = await getUserWallet(user.id)
 
   if (!wallet) {
-    console.log("[v0] Creating CDP wallet for user")
-    const result = await createUserWallet(user.id)
-    if (!result.success || !result.wallet) {
-      return { error: "Failed to create wallet for user" }
-    }
-    wallet = result.wallet
+    console.error("[v0] Wallet not found for user - should have been created at signup")
+    return { error: "Wallet not found. Please contact support." }
   }
 
   const message = `${receiptId}:${profile.name}:${profile.surname}:${profile.birth_number}:${dic}`
@@ -68,7 +64,7 @@ export async function saveScannedReceipt(receiptId: string, dic: string, receipt
     user_id: user.id,
     receipt_id: receiptId,
     dic: dic,
-    signed_message: message, // Store message without signature
+    signed_message: message,
     receipt_data: receiptData,
   })
 
