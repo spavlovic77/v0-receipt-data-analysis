@@ -10,6 +10,13 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser()
 
+  console.log("[v0] Home page - User logged in:", !!user)
+  if (user) {
+    console.log("[v0] User email:", user.email)
+    console.log("[v0] User ID:", user.id)
+  }
+  // </CHANGE>
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
@@ -36,9 +43,14 @@ export default async function Home() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
+        {user && (
+          <div className="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-sm text-green-600 dark:text-green-400 font-medium">✓ Logged in as: {user.email}</p>
+          </div>
+        )}
+        {/* </CHANGE> */}
         {user && <WalletBalanceDisplay />}
       </div>
-      {/* </CHANGE> */}
 
       <div className="relative">
         <ReceiptAnalyzer />

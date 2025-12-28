@@ -17,6 +17,8 @@ export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
   const [loggingOut, setLoggingOut] = useState(false)
   const router = useRouter()
 
+  console.log("[v0] HeaderAuthButtons - isLoggedIn:", isLoggedIn)
+
   const handleSignIn = () => {
     setAuthMode("signin")
     setShowAuth(true)
@@ -29,8 +31,10 @@ export function HeaderAuthButtons({ isLoggedIn }: HeaderAuthButtonsProps) {
 
   const handleLogout = async () => {
     setLoggingOut(true)
+    console.log("[v0] Logging out...")
     const supabase = createClient()
     await supabase.auth.signOut()
+    console.log("[v0] Logged out, refreshing page...")
     router.refresh()
   }
 
