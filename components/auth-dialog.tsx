@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ensureUserWallet } from "@/app/actions/wallet-actions"
+import { completeUserProfile } from "@/app/actions/complete-profile"
 import { Loader2 } from "lucide-react"
 import { SocialLoginButtons } from "./social-login-buttons"
 
@@ -46,6 +47,9 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
 
         if (data.user) {
           setIsCreatingWallet(true)
+
+          await completeUserProfile()
+
           const walletResult = await ensureUserWallet()
 
           if (!walletResult.success) {
@@ -61,6 +65,9 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
 
         if (data.user) {
           setIsCreatingWallet(true)
+
+          await completeUserProfile()
+
           const walletResult = await ensureUserWallet()
 
           if (!walletResult.success) {
@@ -97,6 +104,9 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
 
       if (data.user) {
         setIsCreatingWallet(true)
+
+        await completeUserProfile()
+
         const walletResult = await ensureUserWallet()
 
         if (!walletResult.success) {
@@ -131,8 +141,8 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
           <div className="flex flex-col items-center justify-center py-8 gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <div className="text-center">
-              <p className="font-medium">Vytváram vašu peňaženku...</p>
-              <p className="text-sm text-muted-foreground">Toto môže trvať niekoľko sekúnd</p>
+              <p className="font-medium">Vytváram váš účet...</p>
+              <p className="text-sm text-muted-foreground">Generujem profil a peňaženku</p>
             </div>
           </div>
         ) : !showEmailLogin ? (
@@ -205,7 +215,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
                 {mode === "signup" ? "Mám už účet" : "Vytvoriť nový účet"}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setShowEmailLogin(false)} className="w-full">
-                ← Späť na sociálne siete
+                ← Späť
               </Button>
             </div>
           </form>
