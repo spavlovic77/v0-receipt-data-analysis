@@ -37,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="sk" className="dark">
-      <body className={`font-sans antialiased`}>
+      <body className={`${inter.className} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>
