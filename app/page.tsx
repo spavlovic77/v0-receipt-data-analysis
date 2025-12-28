@@ -1,7 +1,6 @@
 import { ReceiptAnalyzer } from "@/components/receipt-analyzer"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
-import { LoginPrompt } from "@/components/login-prompt"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
 import { createClient } from "@/lib/supabase/server"
 
@@ -35,10 +34,9 @@ export default async function Home() {
         </a>
         <ThemeToggle />
       </div>
-      {/* </CHANGE> */}
 
       <div className="relative z-10 container mx-auto px-4 pt-24 pb-8 max-w-4xl">
-        {!user ? <LoginPrompt /> : <WalletBalanceDisplay />}
+        {user && <WalletBalanceDisplay />}
       </div>
       {/* </CHANGE> */}
 
