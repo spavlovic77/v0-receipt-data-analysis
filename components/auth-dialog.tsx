@@ -33,8 +33,11 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
     setError(null)
     setCreationStep("auth")
 
+    console.log("[v0] Auth dialog: Starting email/password login", { mode })
+
     try {
       if (mode === "signup") {
+        console.log("[v0] Auth dialog: Signing up user")
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -44,36 +47,49 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         })
         if (error) throw error
 
+        console.log("[v0] Auth dialog: Signup successful", { userId: data.user?.id })
+
         if (data.user) {
           setCreationStep("wallet")
+          console.log("[v0] Auth dialog: Calling ensureUserWallet for new user")
           const walletResult = await ensureUserWallet()
+
+          console.log("[v0] Auth dialog: Wallet creation result:", walletResult)
 
           if (!walletResult.success) {
             throw new Error(walletResult.error || "Vytvorenie peňaženky zlyhalo")
           }
 
           setCreationStep("complete")
+          console.log("[v0] Auth dialog: Signup and wallet creation complete")
           setTimeout(() => {
             onOpenChange(false)
             if (onSuccess) onSuccess()
           }, 1000)
         }
       } else {
+        console.log("[v0] Auth dialog: Signing in user")
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
         if (error) throw error
 
+        console.log("[v0] Auth dialog: Sign in successful", { userId: data.user?.id })
+
         if (data.user) {
           setCreationStep("wallet")
+          console.log("[v0] Auth dialog: Calling ensureUserWallet for existing user")
           const walletResult = await ensureUserWallet()
+
+          console.log("[v0] Auth dialog: Wallet creation result:", walletResult)
 
           if (!walletResult.success) {
             throw new Error(walletResult.error || "Vytvorenie peňaženky zlyhalo")
           }
 
           setCreationStep("complete")
+          console.log("[v0] Auth dialog: Sign in and wallet check complete")
           setTimeout(() => {
             onOpenChange(false)
             if (onSuccess) onSuccess()
@@ -81,6 +97,7 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         }
       }
     } catch (error: unknown) {
+      console.error("[v0] Auth dialog: Login error:", error)
       setError(
         error instanceof Error ? error.message : mode === "signup" ? "Registrácia zlyhala" : "Prihlásenie zlyhalo",
       )
@@ -141,7 +158,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
         return "Načítavam..."
     }
   }
-  // </CHANGE>
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -275,7 +291,6 @@ export function AuthDialog({ open, onOpenChange, onSuccess, defaultMode = "signi
               Demo účet
             </Button>
           </div>
-          // </CHANGE>
         )}
       </DialogContent>
     </Dialog>

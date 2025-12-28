@@ -3,220 +3,107 @@
 import { createClient } from "@/lib/supabase/server"
 import { createUserWallet } from "@/lib/cdp-wallet"
 
-/**
- * Create or get wallet for the current user
- */
-export async function ensureUserWallet(): Promise<{
-  success: boolean
-  wallet?: {
-    id: string
-    address: string
-    accountId: string
-  }
-  error?: string
-}> {
+export async function ensureUserWallet() {
+  console.log("[v0] ensureUserWallet: Starting wallet creation process")
+
   try {
     const supabase = await createClient()
-
-    // Get current user
     const {
       data: { user },
-      error: authError,
+      error: userError,
     } = await supabase.auth.getUser()
 
-    if (authError || !user) {
-      return { success: false, error: "User not authenticated" }
+    if (userError || !user) {
+      console.log("[v0] ensureUserWallet: No authenticated user found", userError)
+      return { success: false, error: "Používateľ nie je prihlásený" }
     }
 
-    console.log("[v0] Ensuring wallet for user:", user.id)
+    console.log("[v0] ensureUserWallet: User authenticated", { userId: user.id, email: user.email })
 
-    // Check if user exists in public.users table
-    const { data: existingUser, error: userCheckError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (userCheckError) {
-      console.error("[v0] Error checking user:", userCheckError)
-      return { success: false, error: "Failed to check user record" }
-    }
+    console.log("[v0] ensureUserWallet: Checking if user exists in public.users")
+    const { data: existingUser } = await supabase.from("users").select("id").eq("id", user.id).maybeSingle()
 
     if (!existingUser) {
-      console.log("[v0] User not found in public.users, creating...")
+      console.log("[v0] ensureUserWallet: User not found in public.users, creating...")
+      const { error: insertError } = await supabase.from("users").insert({ id: user.id, email: user.email })
 
-      // Create user record with proper error handling
-      const { error: userInsertError } = await supabase
-        .from("users")
-        .insert({
-          id: user.id,
-          email: user.email || "",
-        })
-        .select()
-        .single()
-
-      if (userInsertError) {
-        // Check if it's a duplicate key error (race condition)
-        if (userInsertError.code === "23505") {
-          console.log("[v0] User already exists (race condition), continuing...")
-        } else {
-          console.error("[v0] Error creating user record:", userInsertError)
-          return {
-            success: false,
-            error: "Nastala chyba pri vytváraní účtu. Prosím skúste znova.",
-          }
-        }
-      } else {
-        console.log("[v0] User record created successfully")
+      if (insertError && insertError.code !== "23505") {
+        console.error("[v0] ensureUserWallet: Error creating user record:", insertError)
+        return { success: false, error: "Chyba pri vytváraní používateľského záznamu" }
       }
 
-      // Wait a moment for the database to propagate
+      console.log("[v0] ensureUserWallet: User record created, waiting 500ms for propagation")
       await new Promise((resolve) => setTimeout(resolve, 500))
     } else {
-      console.log("[v0] User already exists in public.users")
-    }
-    // </CHANGE>
-
-    // Check if wallet already exists
-    const { data: existingWallet, error: fetchError } = await supabase
-      .from("wallets")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (fetchError) {
-      console.error("[v0] Error fetching wallet:", fetchError)
-      return { success: false, error: "Chyba pri načítaní peňaženky" }
+      console.log("[v0] ensureUserWallet: User exists in public.users")
     }
 
-    // Return existing wallet if found
+    console.log("[v0] ensureUserWallet: Checking if wallet already exists")
+    const { data: existingWallet } = await supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle()
+
     if (existingWallet) {
-      console.log("[v0] Wallet already exists:", existingWallet.default_address)
-      return {
-        success: true,
-        wallet: {
-          id: existingWallet.id,
-          address: existingWallet.default_address,
-          accountId: existingWallet.wallet_id,
-        },
-      }
+      console.log("[v0] ensureUserWallet: Wallet already exists", { walletId: existingWallet.wallet_id })
+      return { success: true, wallet: existingWallet }
     }
 
-    console.log("[v0] Creating new CDP wallet...")
-    let createAttempts = 0
-    const maxAttempts = 3
-    let cdpError: Error | null = null
+    console.log("[v0] ensureUserWallet: No wallet found, creating new wallet...")
 
-    while (createAttempts < maxAttempts) {
+    let walletData = null
+    let lastError = null
+    const maxRetries = 3
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const { address, accountId } = await createUserWallet()
-
-        // Save to database
-        const { data: newWallet, error: insertError } = await supabase
-          .from("wallets")
-          .insert({
-            user_id: user.id,
-            wallet_id: accountId,
-            network_id: "base-sepolia",
-            default_address: address,
-          })
-          .select()
-          .single()
-
-        if (insertError) {
-          console.error("[v0] Error saving wallet to database:", insertError)
-
-          // If FK constraint error, it means user doesn't exist
-          if (insertError.code === "23503") {
-            return {
-              success: false,
-              error: "Chyba pri vytváraní účtu. Prosím obnovte stránku a skúste znova.",
-            }
-          }
-
-          return { success: false, error: "Chyba pri ukladaní peňaženky" }
-        }
-
-        console.log("[v0] Wallet created and saved successfully:", address)
-        return {
-          success: true,
-          wallet: {
-            id: newWallet.id,
-            address: newWallet.default_address,
-            accountId: newWallet.wallet_id,
-          },
-        }
+        console.log(`[v0] ensureUserWallet: CDP wallet creation attempt ${attempt}/${maxRetries}`)
+        walletData = await createUserWallet()
+        console.log("[v0] ensureUserWallet: CDP wallet created successfully", {
+          accountId: walletData.accountId,
+          address: walletData.address,
+        })
+        break
       } catch (error) {
-        cdpError = error instanceof Error ? error : new Error("Unknown error")
-        createAttempts++
-        console.error(`[v0] Attempt ${createAttempts} failed:`, error)
-
-        if (createAttempts < maxAttempts) {
-          // Wait before retrying (exponential backoff)
-          await new Promise((resolve) => setTimeout(resolve, 1000 * createAttempts))
+        lastError = error
+        console.error(`[v0] ensureUserWallet: CDP creation attempt ${attempt} failed:`, error)
+        if (attempt < maxRetries) {
+          const waitTime = Math.pow(2, attempt) * 500
+          console.log(`[v0] ensureUserWallet: Waiting ${waitTime}ms before retry...`)
+          await new Promise((resolve) => setTimeout(resolve, waitTime))
         }
       }
     }
 
-    return {
-      success: false,
-      error: `Chyba pri vytváraní peňaženky po ${maxAttempts} pokusoch. Prosím skúste znova.`,
-    }
-    // </CHANGE>
-  } catch (error) {
-    console.error("[v0] Error in ensureUserWallet:", error)
-    return {
-      success: false,
-      error: "Neočakávaná chyba. Prosím skúste znova.",
-    }
-  }
-}
-
-/**
- * Get user's wallet information
- */
-export async function getUserWallet() {
-  try {
-    const supabase = await createClient()
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return { success: false, error: "User not authenticated" }
+    if (!walletData) {
+      console.error("[v0] ensureUserWallet: All CDP creation attempts failed")
+      return {
+        success: false,
+        error: `Vytvorenie peňaženky zlyhalo po ${maxRetries} pokusoch: ${lastError instanceof Error ? lastError.message : "Neznáma chyba"}`,
+      }
     }
 
-    const { data: wallet, error: fetchError } = await supabase
+    console.log("[v0] ensureUserWallet: Saving wallet to database")
+    const { data: newWallet, error: walletError } = await supabase
       .from("wallets")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle()
+      .insert({
+        user_id: user.id,
+        wallet_id: walletData.accountId,
+        default_address: walletData.address,
+        network_id: "base-sepolia",
+      })
+      .select()
+      .single()
 
-    if (fetchError) {
-      return { success: false, error: "Failed to fetch wallet" }
+    if (walletError) {
+      console.error("[v0] ensureUserWallet: Error saving wallet to database:", walletError)
+      return { success: false, error: `Chyba pri ukladaní peňaženky: ${walletError.message}` }
     }
 
-    if (!wallet) {
-      return { success: false, error: "Wallet not found" }
-    }
-
-    return {
-      success: true,
-      wallet: {
-        id: wallet.id,
-        address: wallet.default_address,
-        accountId: wallet.wallet_id,
-        networkId: wallet.network_id,
-        createdAt: wallet.created_at,
-      },
-    }
+    console.log("[v0] ensureUserWallet: Wallet creation complete!", { walletId: newWallet.wallet_id })
+    return { success: true, wallet: newWallet }
   } catch (error) {
-    console.error("[v0] Error getting user wallet:", error)
+    console.error("[v0] ensureUserWallet: Unexpected error:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: error instanceof Error ? error.message : "Neočakávaná chyba pri vytváraní peňaženky",
     }
   }
 }
