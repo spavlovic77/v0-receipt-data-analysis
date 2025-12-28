@@ -4,6 +4,7 @@ import { WalletBalanceDisplay } from "@/components/wallet-balance-display"
 import { HeaderAuthButtons } from "@/components/header-auth-buttons"
 import { OnboardingModal } from "@/components/onboarding-modal"
 import { createClient } from "@/lib/supabase/server"
+import { OAuthCodeHandler } from "@/components/oauth-code-handler"
 
 export default async function Home() {
   const supabase = await createClient()
@@ -30,6 +31,8 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-background/95">
+      <OAuthCodeHandler />
+
       {user && needsOnboarding && (
         <OnboardingModal userId={user.id} userEmail={user.email || ""} needsOnboarding={needsOnboarding} />
       )}
