@@ -144,11 +144,14 @@ If you just want to test quickly, you can enable providers without custom creden
 
 ## Environment Variables
 
-After OAuth is configured, your app will use these Supabase environment variables:
+After OAuth is configured, your app needs these environment variables:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_SITE_URL=https://your-production-url.vercel.app
 ```
 
-These are already configured in your v0 project.
+**Important**: You MUST add `NEXT_PUBLIC_SITE_URL` in the v0 Vars section with your production URL. This ensures OAuth providers redirect back to your production site instead of localhost.
+
+These are already configured in your v0 project (except NEXT_PUBLIC_SITE_URL which you need to add).
