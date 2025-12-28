@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
 export async function GET(request: Request) {
@@ -8,9 +9,30 @@ export async function GET(request: Request) {
   console.log("[v0] OAuth callback - code present:", !!code)
 
   if (code) {
-    const supabase = await createClient()
+    const cookieStore = await cookies()
 
-    // The exchangeCodeForSession method sets the correct cookies via the server client
+    const redirectUrl = new URL(requestUrl.origin)
+    redirectUrl.searchParams.set("new_login", "true")
+    const response = NextResponse.redirect(redirectUrl)
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              // Set cookies on the response that will be returned
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
+
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
@@ -20,11 +42,7 @@ export async function GET(request: Request) {
 
     if (data?.session) {
       console.log("[v0] OAuth callback - User authenticated:", data.user?.email)
-
-      // Redirect to home with new_login flag
-      const redirectUrl = new URL(requestUrl.origin)
-      redirectUrl.searchParams.set("new_login", "true")
-      return NextResponse.redirect(redirectUrl)
+      return response
     }
   }
 
