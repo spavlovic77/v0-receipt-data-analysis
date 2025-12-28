@@ -39,5 +39,9 @@ export async function GET(request: Request) {
   }
 
   console.log("[v0] Redirecting to:", requestUrl.origin)
-  return NextResponse.redirect(requestUrl.origin)
+  const response = NextResponse.redirect(requestUrl.origin, { status: 307 })
+
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate")
+
+  return response
 }
